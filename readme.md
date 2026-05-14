@@ -152,7 +152,6 @@ adapter file points back to it.
 ## Docs
 
 - Octra docs: https://docs.octra.org
-- AML reference: `appliedML/` in the parent OctWa workspace
 - Explorer:
   - mainnet  https://octrascan.io
   - devnet   https://devnet.octrascan.io
