@@ -1,0 +1,20 @@
+// Active contract for the aml-workspace scripts.
+//
+// Override the source path with AML_CONTRACT, e.g.:
+//   AML_CONTRACT=contract/templates/token/main.aml npm run compile
+//
+// Defaults to a minimal scaffold so `npm run compile` works out of the box.
+
+contract MyContract {
+  state {
+    owner: address
+  }
+
+  constructor() {
+    self.owner = origin
+  }
+
+  view fn get_owner(): address {
+    return self.owner
+  }
+}

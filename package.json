@@ -1,0 +1,33 @@
+{
+  "name": "aml-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Octra AppliedML (AML) contract workspace — compile, deploy, verify, and test AML contracts on devnet or mainnet.",
+  "main": "scripts/compile.js",
+  "scripts": {
+    "compile":          "node scripts/compile.js",
+    "deploy":           "node scripts/deploy.js",
+    "save-abi":         "node scripts/save_abi.js",
+    "verify":           "node scripts/verify.js",
+    "test":             "node scripts/test.js",
+
+    "compile:devnet":   "cross-env AML_NETWORK=devnet  node scripts/compile.js",
+    "deploy:devnet":    "cross-env AML_NETWORK=devnet  node scripts/deploy.js",
+    "save-abi:devnet":  "cross-env AML_NETWORK=devnet  node scripts/save_abi.js",
+    "verify:devnet":    "cross-env AML_NETWORK=devnet  node scripts/verify.js",
+    "test:devnet":      "cross-env AML_NETWORK=devnet  node scripts/test.js",
+
+    "compile:mainnet":  "cross-env AML_NETWORK=mainnet node scripts/compile.js",
+    "deploy:mainnet":   "cross-env AML_NETWORK=mainnet node scripts/deploy.js",
+    "save-abi:mainnet": "cross-env AML_NETWORK=mainnet node scripts/save_abi.js",
+    "verify:mainnet":   "cross-env AML_NETWORK=mainnet node scripts/verify.js",
+    "test:mainnet":     "cross-env AML_NETWORK=mainnet node scripts/test.js"
+  },
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "tweetnacl": "^1.0.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

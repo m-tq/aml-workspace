@@ -1,0 +1,107 @@
+# ─── Dependencies ────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
+.pnp.loader.mjs
+.yarn/cache
+.yarn/install-state.gz
+jspm_packages/
+
+# ─── Environment files (sensitive — never commit) ────────────────────────
+# Only .env.example / .env.devnet.example / .env.mainnet.example should be
+# committed.
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.devnet
+.env.mainnet
+.env.test
+!.env.example
+!.env.devnet.example
+!.env.mainnet.example
+
+# ─── Build artifacts ─────────────────────────────────────────────────────
+build/
+dist/
+out/
+.next/
+.nuxt/
+.output/
+.vite/
+.turbo/
+.cache/
+tmp/
+temp/
+
+# ─── TypeScript / Vite ───────────────────────────────────────────────────
+*.tsbuildinfo
+.tsbuildinfo
+tsconfig.tsbuildinfo
+tsconfig.*.tsbuildinfo
+
+# ─── Deployment records (may contain tx hashes, nonces, addresses tied to
+# a specific deployer — safer to keep local) ────────────────────────────
+deployment.json
+deployment.devnet.json
+deployment.mainnet.json
+**/deployment.*.json
+
+# ─── Secrets / keys ──────────────────────────────────────────────────────
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+keys/
+wallet.json
+wallet.oct
+mnemonic.txt
+mnemonics.txt
+private_keys.txt
+
+# ─── Logs ────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─── Runtime data ────────────────────────────────────────────────────────
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ─── Coverage / test output ──────────────────────────────────────────────
+coverage/
+*.lcov
+.nyc_output/
+.jest/
+
+# ─── IDE / editors ───────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ─── OS cruft ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ─── Misc ────────────────────────────────────────────────────────────────
+*.bak
+*.backup
+*.orig
+.history/
