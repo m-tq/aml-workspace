@@ -8,7 +8,8 @@ const DEBUG = process.env.AML_DEBUG === '1'
 let _rpcUrl = 'http://165.227.225.79:8080'
 
 function setRpcUrl(url) {
-  _rpcUrl = String(url || '').replace(/\/+$/, '')
+  const normalized = String(url || '').replace(/\/+$/, '')
+  _rpcUrl = normalized.endsWith('/rpc') ? normalized.slice(0, -4) : normalized
 }
 
 function getRpcUrl() {

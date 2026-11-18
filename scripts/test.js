@@ -1,8 +1,8 @@
-// Smoke test for the deployed AML contract.
+// Smoke test for the deployed AppliedML Program.
 //
-// This is a *generic* harness — it does not know which methods the contract
+// This is a *generic* harness — it does not know which methods the program
 // exposes. It calls every view function in the ABI with no arguments and
-// reports the result, so you can confirm the contract is alive and the ABI
+// reports the result, so you can confirm the program is alive and the ABI
 // matches what the chain serves.
 //
 // For per-contract logic tests, drop a file at:

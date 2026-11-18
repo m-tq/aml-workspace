@@ -2,7 +2,7 @@
   "name": "aml-workspace",
   "version": "0.1.0",
   "private": true,
-  "description": "Octra AppliedML (AML) contract workspace — compile, deploy, verify, and test AML contracts on devnet or mainnet.",
+  "description": "Octra AppliedML (AML) contract workspace - compile, deploy, verify, and test AML contracts on local, devnet or mainnet.",
   "main": "scripts/compile.js",
   "scripts": {
     "compile":          "node scripts/compile.js",
@@ -10,18 +10,29 @@
     "save-abi":         "node scripts/save_abi.js",
     "verify":           "node scripts/verify.js",
     "test":             "node scripts/test.js",
+    "static-verify":    "node scripts/static_verify.js",
+    "check":            "node scripts/static_verify.js",
+
+    "compile:local":    "cross-env AML_NETWORK=local   node scripts/compile.js",
+    "deploy:local":     "cross-env AML_NETWORK=local   node scripts/deploy.js",
+    "save-abi:local":   "cross-env AML_NETWORK=local   node scripts/save_abi.js",
+    "verify:local":     "cross-env AML_NETWORK=local   node scripts/verify.js",
+    "test:local":       "cross-env AML_NETWORK=local   node scripts/test.js",
+    "static-verify:local": "cross-env AML_NETWORK=local node scripts/static_verify.js",
 
     "compile:devnet":   "cross-env AML_NETWORK=devnet  node scripts/compile.js",
     "deploy:devnet":    "cross-env AML_NETWORK=devnet  node scripts/deploy.js",
     "save-abi:devnet":  "cross-env AML_NETWORK=devnet  node scripts/save_abi.js",
     "verify:devnet":    "cross-env AML_NETWORK=devnet  node scripts/verify.js",
     "test:devnet":      "cross-env AML_NETWORK=devnet  node scripts/test.js",
+    "static-verify:devnet": "cross-env AML_NETWORK=devnet node scripts/static_verify.js",
 
     "compile:mainnet":  "cross-env AML_NETWORK=mainnet node scripts/compile.js",
     "deploy:mainnet":   "cross-env AML_NETWORK=mainnet node scripts/deploy.js",
     "save-abi:mainnet": "cross-env AML_NETWORK=mainnet node scripts/save_abi.js",
     "verify:mainnet":   "cross-env AML_NETWORK=mainnet node scripts/verify.js",
-    "test:mainnet":     "cross-env AML_NETWORK=mainnet node scripts/test.js"
+    "test:mainnet":     "cross-env AML_NETWORK=mainnet node scripts/test.js",
+    "static-verify:mainnet": "cross-env AML_NETWORK=mainnet node scripts/static_verify.js"
   },
   "dependencies": {
     "cross-env": "^7.0.3",

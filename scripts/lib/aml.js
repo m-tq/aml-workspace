@@ -108,13 +108,14 @@ async function getAccountState(address) {
   }
 }
 
-async function getRecommendedFee(opType) {
-  const fee = await rpc('octra_recommendedFee', [opType])
+async function getRecommendedFee(opType, encryptedDataLen = null) {
+  const params = encryptedDataLen == null ? [opType] : [opType, encryptedDataLen]
+  const fee = await rpc('octra_recommendedFee', params)
   const r = fee.recommended ?? fee.base ?? 1000
   return typeof r === 'string' ? parseInt(r, 10) : r
 }
 
-function buildDeployTx({ deployer, computedAddress, bytecodeB64, constructorParams, nonce, ou, keypair }) {
+function buildProgramDeployTx({ deployer, computedAddress, programPackageB64, constructorParams, nonce, ou, keypair }) {
   return buildSignedTx({
     from:           deployer,
     to_:            computedAddress,
@@ -122,8 +123,8 @@ function buildDeployTx({ deployer, computedAddress, bytecodeB64, constructorPara
     nonce,
     ou,
     timestamp:      Date.now() / 1000,
-    op_type:        'deploy',
-    encrypted_data: bytecodeB64,
+    op_type:        'program_deploy',
+    encrypted_data: programPackageB64,
     message:        JSON.stringify(constructorParams ?? []),
   }, keypair)
 }
@@ -136,7 +137,7 @@ function buildCallTx({ caller, contract, method, params, amount, nonce, ou, keyp
     nonce,
     ou,
     timestamp:      Date.now() / 1000,
-    op_type:        'call',
+    op_type:        'program_exec',
     encrypted_data: method,
     message:        JSON.stringify(params ?? []),
   }, keypair)
@@ -222,7 +223,7 @@ module.exports = {
   buildSignedTx,
   getAccountState,
   getRecommendedFee,
-  buildDeployTx,
+  buildProgramDeployTx,
   buildCallTx,
   submitTx,
   waitForTx,

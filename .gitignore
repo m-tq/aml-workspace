@@ -48,6 +48,10 @@ deployment.json
 deployment.devnet.json
 deployment.mainnet.json
 **/deployment.*.json
+**/deployment.*.pending.json
+**/verification*.json
+**/static-verification.json
+**/*receipt*.json
 
 # ─── Secrets / keys ──────────────────────────────────────────────────────
 *.pem
@@ -58,6 +62,8 @@ secrets/
 keys/
 wallet.json
 wallet.oct
+wallet_deployer.txt
+*wallet*.txt
 mnemonic.txt
 mnemonics.txt
 private_keys.txt
@@ -105,3 +111,6 @@ ehthumbs.db
 *.backup
 *.orig
 .history/
+.agents/
+.codex/
+.kilo/worktrees/

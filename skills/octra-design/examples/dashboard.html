@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" class="theme-dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Synteq UI — Dashboard</title>
+
+  <!-- Fonts + styles (fully offline — fonts served from fonts/) -->
+  <link rel="stylesheet" href="../css/synteq-ui.css" />
+
+  <style>
+    /* =========================================================
+       Dashboard-specific styles (not part of the framework)
+       ========================================================= */
+
+    /* Hero: hostname + status badge + action bar */
+    .dash-hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--sq-space-3);
+      flex-wrap: wrap;
+    }
+    .dash-hero__left {
+      display: flex;
+      align-items: baseline;
+      gap: var(--sq-space-3);
+      flex-wrap: wrap;
+    }
+    .dash-hero__hostname {
+      font-size: var(--sq-text-3xl);
+      font-weight: var(--sq-fw-semibold);
+      color: var(--sq-text-strong);
+      letter-spacing: -0.025em;
+      line-height: 1.1;
+    }
+    .dash-hero__actions {
+      display: flex;
+      align-items: center;
+      gap: var(--sq-space-2);
+      flex-wrap: wrap;
+    }
+
+    /* Gauge list — tight column */
+    .gauge-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sq-space-5);
+    }
+
+    /* Two-column layout within a section */
+    .dash-pair {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: var(--sq-space-6);
+      align-items: start;
+    }
+    @media (max-width: 760px) { .dash-pair { grid-template-columns: 1fr; } }
+
+    /* Inline IP copy row */
+    .ip-row {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sq-space-2);
+      font-family: var(--sq-font-mono);
+      font-size: var(--sq-text-sm);
+      color: var(--sq-text-strong);
+    }
+
+    /* Event log */
+    .log-row {
+      display: flex;
+      align-items: baseline;
+      gap: var(--sq-space-3);
+      padding: var(--sq-space-3) 0;
+      font-size: var(--sq-text-sm);
+    }
+    .log-ts { font-family: var(--sq-font-mono); color: var(--sq-text-subtle); min-width: 58px; font-size: var(--sq-text-xs); flex-shrink: 0; }
+    .log-msg { color: var(--sq-text); flex: 1; min-width: 0; }
+
+    /* Pricing */
+    .price-row { display: flex; align-items: baseline; gap: var(--sq-space-2); }
+    .price-row__val { font-size: var(--sq-text-2xl); font-weight: var(--sq-fw-semibold); color: var(--sq-text-strong); letter-spacing: -0.02em; }
+    .price-row__per { font-size: var(--sq-text-sm); color: var(--sq-text-subtle); }
+
+    /* Uptime bar */
+    .uptime-bar { display: flex; width: 100%; height: 6px; border-radius: 999px; overflow: hidden; gap: 2px; }
+    .uptime-bar__seg { height: 100%; border-radius: 999px; }
+
+    /* User pill in footer */
+    .sq-user { display: flex; align-items: center; gap: var(--sq-space-2); min-width: 0; text-decoration: none; }
+    .sq-user__info { display: flex; flex-direction: column; min-width: 0; }
+    .sq-user__name { font-size: var(--sq-text-sm); color: var(--sq-text-strong); font-weight: var(--sq-fw-medium); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sq-user__email { font-size: var(--sq-text-xs); color: var(--sq-text-subtle); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Copy feedback */
+    .sq-copy--ok { color: var(--sq-status-running) !important; }
+  </style>
+</head>
+<body>
+
+<!-- =====================================================================
+     APP SHELL — viewport-locked grid (no page scroll)
+     ===================================================================== -->
+<div class="sq-app" id="app">
+
+  <!-- ================================================================
+       ASIDE — collapsible sidebar (overlay on mobile)
+       ================================================================ -->
+  <aside class="sq-aside" aria-label="Primary navigation" id="sidebar">
+
+    <!-- Brand — no close button here. The topbar hamburger is the single toggle. -->
+    <a href="#" class="sq-aside__brand" aria-label="Synteq Cloud home">
+      <span class="sq-aside__brand-mark" aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M9 3.5C9 2.12 7.66 1 6 1 4.34 1 3 2.12 3 3.5c0 1.18.9 2.17 2.14 2.41L7.5 6.3C8.43 6.57 9 7.3 9 8.2 9 9.32 7.87 10.2 6.5 10.2S4 9.32 4 8.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      Synteq
+    </a>
+
+    <!-- Nav — no group labels in the bottom dock -->
+    <nav class="sq-nav" aria-label="Primary navigation links">
+      <a href="#" class="sq-nav__item sq-nav__item--active" aria-current="page">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="6" rx="1"/><rect x="2" y="15" width="20" height="6" rx="1"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        Instances
+        <span class="sq-nav__badge">4</span>
+      </a>
+
+      <a href="#" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="4" rx="1"/><rect x="9" y="18" width="6" height="4" rx="1"/><rect x="2" y="10" width="6" height="4" rx="1"/><rect x="16" y="10" width="6" height="4" rx="1"/><line x1="8" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="16" y2="12"/><line x1="12" y1="6" x2="12" y2="10"/><line x1="12" y1="14" x2="12" y2="18"/></svg>
+        Networks
+      </a>
+
+      <a href="#" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 9v4c0 1.66 4.03 3 9 3s9-1.34 9-3V9"/><path d="M3 13v4c0 1.66 4.03 3 9 3s9-1.34 9-3v-4"/></svg>
+        Volumes
+        <span class="sq-nav__badge">2</span>
+      </a>
+
+      <a href="#" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Snapshots
+      </a>
+
+      <a href="#" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Billing
+      </a>
+
+      <a href="#" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </a>
+    </nav>
+
+    <!-- Footer user row -->
+    <div class="sq-aside__footer">
+      <span class="sq-dot" aria-label="Online"></span>
+      <a href="#" class="sq-user" aria-label="Account: Alex Carter">
+        <span class="sq-avatar" aria-hidden="true">AC</span>
+        <span class="sq-user__info">
+          <span class="sq-user__name">Alex Carter</span>
+          <span class="sq-user__email">alex@synteq.io</span>
+        </span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ================================================================
+       TOPBAR
+       ================================================================ -->
+  <header class="sq-topbar" role="banner">
+    <!-- Sidebar toggle (hamburger / X) -->
+    <button class="sq-sidebar-toggle" data-sq-sidebar-toggle aria-label="Toggle navigation" aria-expanded="true" aria-controls="sidebar">
+      <svg class="sq-icon sq-icon--18 icon-menu" viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <svg class="sq-icon sq-icon--18 icon-close" viewBox="0 0 24 24" aria-hidden="true" style="display:none;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <div class="sq-topbar__left">
+      <!-- Breadcrumb -->
+      <a href="#" class="sq-topbar__crumb" aria-label="Back to Instances">
+        <svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        Instances
+      </a>
+      <span class="sq-topbar__sep" aria-hidden="true">/</span>
+      <span class="sq-topbar__title">octra</span>
+      <!-- Live status -->
+      <span class="sq-status" aria-label="Running">
+        <span class="sq-dot" aria-hidden="true"></span>
+        <span class="sq-t-xs sq-mute">Running</span>
+      </span>
+    </div>
+
+    <div class="sq-topbar__right">
+      <!-- Search -->
+      <button class="sq-search" data-sq-search-trigger aria-label="Search or run a command (⌘K)">
+        <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="sq-search__text">Search…</span>
+        <kbd class="sq-kbd">⌘K</kbd>
+      </button>
+
+      <!-- Theme toggle -->
+      <button class="sq-iconbtn sq-theme-toggle" data-sq-toggle-theme aria-label="Toggle theme">
+        <svg class="sq-icon sq-icon--16 sq-icon--moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="sq-icon sq-icon--16 sq-icon--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+
+      <!-- Notifications -->
+      <button class="sq-iconbtn" aria-label="Notifications">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       MAIN — in-content scroll region
+       ================================================================ -->
+  <main class="sq-main" aria-label="Instance detail">
+    <div class="sq-content sq-scroll" id="main-content">
+
+      <!-- ===== SECTION 1: HERO ======================================= -->
+      <div class="sq-section sq-fade-up">
+
+        <!-- Hostname + badges + actions -->
+        <div class="dash-hero">
+          <div class="dash-hero__left">
+            <h1 class="dash-hero__hostname">octra</h1>
+            <span class="sq-badge sq-badge--ok" style="align-self:center;">
+              Running
+            </span>
+            <span class="sq-badge" style="align-self:center;">SSD · Amsterdam</span>
+          </div>
+          <div class="dash-hero__actions">
+            <div class="sq-seg" role="group" aria-label="Instance actions">
+              <button class="sq-seg__btn" aria-label="Open console">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                Console
+              </button>
+              <button class="sq-seg__btn" aria-label="Power options">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                Power
+              </button>
+              <button class="sq-seg__btn" aria-label="Reboot instance">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Reboot
+              </button>
+            </div>
+            <button class="sq-iconbtn" aria-label="More options">
+              <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Spec strip — gap only, no internal hairlines -->
+        <div class="sq-stat-strip">
+          <div class="sq-stat">
+            <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="14" x2="4" y2="14"/></svg> vCPU</span>
+            <div class="sq-stat__value">4 <span class="sq-unit">cores</span></div>
+          </div>
+          <div class="sq-stat">
+            <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><line x1="8" y1="12" x2="8.01" y2="12"/><line x1="12" y1="12" x2="12.01" y2="12"/><line x1="16" y1="12" x2="16.01" y2="12"/></svg> RAM</span>
+            <div class="sq-stat__value">8 <span class="sq-unit">GB</span></div>
+          </div>
+          <div class="sq-stat">
+            <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 9v4c0 1.66 4.03 3 9 3s9-1.34 9-3V9"/></svg> Storage</span>
+            <div class="sq-stat__value">160 <span class="sq-unit">GB SSD</span></div>
+          </div>
+          <div class="sq-stat">
+            <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Bandwidth</span>
+            <div class="sq-stat__value">4 <span class="sq-unit">TB/mo</span></div>
+          </div>
+          <div class="sq-stat">
+            <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Price</span>
+            <div class="sq-stat__value">$15.70 <span class="sq-unit">/mo</span></div>
+          </div>
+        </div>
+
+        <!-- Network / OS details as a KV list -->
+        <div class="sq-kv" style="max-width:480px;">
+          <div class="sq-kv__row">
+            <span class="sq-kv__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> IPv4</span>
+            <span class="sq-kv__value"><span class="ip-row">185.220.101.42 <button class="sq-iconbtn" style="width:22px;height:22px;" data-sq-copy="185.220.101.42" aria-label="Copy IPv4"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></span>
+          </div>
+          <div class="sq-kv__row">
+            <span class="sq-kv__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> IPv6</span>
+            <span class="sq-kv__value"><span class="ip-row">2a0b:f4c2::1 <button class="sq-iconbtn" style="width:22px;height:22px;" data-sq-copy="2a0b:f4c2::1" aria-label="Copy IPv6"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span></span>
+          </div>
+          <div class="sq-kv__row">
+            <span class="sq-kv__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> OS</span>
+            <span class="sq-kv__value">Ubuntu 24.04 LTS</span>
+          </div>
+          <div class="sq-kv__row">
+            <span class="sq-kv__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Region</span>
+            <span class="sq-kv__value">AMS1 — Amsterdam</span>
+          </div>
+        </div>
+
+      </div><!-- /section 1 -->
+
+      <!-- ===== SECTION 2: RESOURCE USAGE =========================== -->
+      <div class="sq-section" id="resources">
+
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Resource Usage
+          </span>
+          <span class="sq-section__meta sq-live" id="refresh-ts">Live · 5s ago</span>
+        </div>
+
+        <div class="dash-pair">
+          <!-- Gauges -->
+          <div class="gauge-list" data-sq-stagger>
+            <div class="sq-gauge" data-sq-gauge="34" role="progressbar" aria-label="CPU usage" aria-valuenow="34" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-gauge__head">
+                <span class="sq-gauge__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="14" x2="4" y2="14"/></svg> CPU</span>
+                <span class="sq-gauge__value">34<span class="sq-gauge__max"> / 100%</span></span>
+              </div>
+              <div class="sq-gauge__track"><div class="sq-gauge__fill"></div></div>
+            </div>
+
+            <div class="sq-gauge" data-sq-gauge="81" role="progressbar" aria-label="Memory usage" aria-valuenow="81" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-gauge__head">
+                <span class="sq-gauge__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><line x1="8" y1="12" x2="8.01" y2="12"/><line x1="12" y1="12" x2="12.01" y2="12"/><line x1="16" y1="12" x2="16.01" y2="12"/></svg> Memory</span>
+                <span class="sq-gauge__value">6.5<span class="sq-gauge__max"> / 8 GB</span></span>
+              </div>
+              <div class="sq-gauge__track"><div class="sq-gauge__fill"></div></div>
+            </div>
+
+            <div class="sq-gauge" data-sq-gauge="57" role="progressbar" aria-label="Disk usage" aria-valuenow="57" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-gauge__head">
+                <span class="sq-gauge__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 9v4c0 1.66 4.03 3 9 3s9-1.34 9-3V9"/></svg> Disk</span>
+                <span class="sq-gauge__value">91.2<span class="sq-gauge__max"> / 160 GB</span></span>
+              </div>
+              <div class="sq-gauge__track"><div class="sq-gauge__fill"></div></div>
+            </div>
+
+            <div class="sq-gauge" data-sq-gauge="18" role="progressbar" aria-label="Bandwidth usage" aria-valuenow="18" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-gauge__head">
+                <span class="sq-gauge__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Bandwidth</span>
+                <span class="sq-gauge__value">0.72<span class="sq-gauge__max"> / 4 TB</span></span>
+              </div>
+              <div class="sq-gauge__track"><div class="sq-gauge__fill sq-gauge__fill--brand"></div></div>
+            </div>
+          </div>
+
+          <!-- CPU Sparkline -->
+          <div style="display:flex;flex-direction:column;gap:var(--sq-space-2);">
+            <span class="sq-t-xs sq-mute" style="text-transform:uppercase;letter-spacing:.06em;">CPU — 30 min</span>
+            <svg class="sq-spark" id="cpu-spark" viewBox="0 0 200 40" preserveAspectRatio="none" role="img" aria-label="CPU usage over 30 minutes"></svg>
+            <div class="sq-legend">
+              <span class="sq-legend__item"><span class="sq-legend__sw sq-legend__sw--in"></span>CPU %</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /section 2 -->
+
+      <!-- ===== SECTION 3: NETWORK I/O ============================== -->
+      <div class="sq-section">
+
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            Network I/O
+          </span>
+          <div class="sq-legend">
+            <span class="sq-legend__item"><span class="sq-legend__sw sq-legend__sw--in"></span>In</span>
+            <span class="sq-legend__item"><span class="sq-legend__sw sq-legend__sw--out"></span>Out</span>
+          </div>
+        </div>
+
+        <div class="sq-stat-strip">
+          <div class="sq-stat">
+            <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--ok" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> Inbound</span>
+            <div class="sq-stat__value">2.4 <span class="sq-unit">MB/s</span></div>
+            <span class="sq-stat__delta sq-stat__delta--up">↑ 18% vs avg</span>
+          </div>
+          <div class="sq-stat">
+            <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--err" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> Outbound</span>
+            <div class="sq-stat__value">0.8 <span class="sq-unit">MB/s</span></div>
+            <span class="sq-stat__delta sq-stat__delta--down">↓ 4% vs avg</span>
+          </div>
+          <div class="sq-stat">
+            <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> Month total</span>
+            <div class="sq-stat__value">720 <span class="sq-unit">GB</span></div>
+          </div>
+        </div>
+
+        <div class="sq-bars" id="net-bars" role="img" aria-label="Network I/O bar chart" style="--sq-bars-cols:24;"></div>
+        <div style="display:flex;justify-content:space-between;">
+          <span class="sq-t-xs sq-mute">24 min ago</span>
+          <span class="sq-t-xs sq-mute">now</span>
+        </div>
+
+      </div><!-- /section 3 -->
+
+      <!-- ===== SECTION 4: INSTANCE DETAILS ========================= -->
+      <div class="sq-section">
+
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Instance Details
+          </span>
+        </div>
+
+        <div class="dash-pair">
+          <!-- KV -->
+          <div class="sq-kv">
+            <div class="sq-kv__row"><span class="sq-kv__label">Hostname</span><span class="sq-kv__value sq-strong sq-mono">octra</span></div>
+            <div class="sq-kv__row"><span class="sq-kv__label">Instance ID</span><span class="sq-kv__value sq-mono" style="font-size:var(--sq-text-xs);color:var(--sq-text-subtle);">01a15e7e-4c64-7293-ad4f</span></div>
+            <div class="sq-kv__row"><span class="sq-kv__label">Plan</span><span class="sq-kv__value">Shared VPS · SSD-4</span></div>
+            <div class="sq-kv__row"><span class="sq-kv__label">Kernel</span><span class="sq-kv__value sq-mono" style="font-size:var(--sq-text-xs);color:var(--sq-text-subtle);">6.8.0-45-generic</span></div>
+            <div class="sq-kv__row"><span class="sq-kv__label">Created</span><span class="sq-kv__value">14 Jan 2025</span></div>
+            <div class="sq-kv__row"><span class="sq-kv__label">Uptime</span><span class="sq-kv__value"><span class="sq-badge sq-badge--ok">99.97%</span></span></div>
+          </div>
+
+          <!-- Pricing + actions -->
+          <div style="display:flex;flex-direction:column;gap:var(--sq-space-4);">
+            <span class="sq-t-xs sq-mute">Monthly cost</span>
+            <div class="price-row">
+              <span class="price-row__val">$15.70</span>
+              <span class="price-row__per">/month</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:var(--sq-space-2);">
+              <span class="sq-t-xs sq-mute">Uptime — last 90 days</span>
+              <div class="uptime-bar" role="img" aria-label="Uptime 99.97%">
+                <div class="uptime-bar__seg" style="flex:1;background:var(--sq-status-running);opacity:.7;"></div>
+                <div class="uptime-bar__seg" style="width:4px;background:var(--sq-status-warning);"></div>
+                <div class="uptime-bar__seg" style="flex:1;background:var(--sq-status-running);opacity:.7;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;">
+                <span class="sq-t-xs sq-mute">90d ago</span>
+                <span class="sq-t-xs sq-mute">Today</span>
+              </div>
+            </div>
+
+            <div class="sq-btn__stack" style="padding-top:var(--sq-space-2);">
+              <button class="sq-btn sq-btn--block"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Resize VPS</button>
+              <button class="sq-btn sq-btn--block sq-btn--ghost"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> Switch to dedicated cores</button>
+              <button class="sq-btn sq-btn--danger sq-btn--block"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Destroy instance</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /section 4 -->
+
+      <!-- ===== SECTION 5: RECENT EVENTS ============================ -->
+      <div class="sq-section">
+
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Recent Events
+          </span>
+          <a href="#" class="sq-t-xs sq-mute" style="text-decoration:underline;text-underline-offset:3px;">View all</a>
+        </div>
+
+        <div role="log" aria-label="Recent instance events" aria-live="polite">
+          <div class="log-row"><span class="log-ts">just now</span><span class="sq-badge sq-badge--ok" style="flex-shrink:0;"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> OK</span><span class="log-msg">Health check passed · all services responding</span></div>
+          <div class="log-row"><span class="log-ts">2m ago</span><span class="sq-badge" style="flex-shrink:0;"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> Info</span><span class="log-msg">Bandwidth spike detected · 2.4 MB/s inbound</span></div>
+          <div class="log-row"><span class="log-ts">18m ago</span><span class="sq-badge sq-badge--warn" style="flex-shrink:0;"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Warn</span><span class="log-msg">Memory usage exceeded 80% threshold</span></div>
+          <div class="log-row"><span class="log-ts">1h ago</span><span class="sq-badge" style="flex-shrink:0;"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Info</span><span class="log-msg">Automatic kernel update applied · no reboot required</span></div>
+          <div class="log-row"><span class="log-ts">3h ago</span><span class="sq-badge sq-badge--ok" style="flex-shrink:0;"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> OK</span><span class="log-msg">Scheduled backup completed · snapshot-2025-10-27-03h</span></div>
+        </div>
+
+      </div><!-- /section 5 -->
+
+      <div style="height:var(--sq-space-6);" aria-hidden="true"></div>
+    </div><!-- /.sq-content -->
+  </main>
+
+</div><!-- /.sq-app -->
+
+<dialog class="sq-dialog" id="command-dialog" aria-labelledby="command-title">
+  <form method="dialog" class="sq-command">
+    <div class="sq-section__head"><strong id="command-title">Quick actions</strong><button class="sq-btn sq-btn--icon" value="cancel" aria-label="Close">×</button></div>
+    <input class="sq-input" data-sq-search-input placeholder="Search actions..." aria-label="Search actions" />
+    <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#resources">Jump to resources</button>
+    <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="Restart instance">Restart instance</button>
+    <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="Open console">Open console</button>
+  </form>
+</dialog>
+<script src="../js/synteq-ui.js"></script>
+<script>
+(function () {
+  /* CPU sparkline */
+  var cpuHistory = [18,22,20,25,31,28,35,40,38,42,36,30,34,38,41,36,34,38,35,32,35,34,33,36,35,33,35,34,33,34];
+  var sparkEl = document.getElementById('cpu-spark');
+  if (sparkEl) SynteqUI.renderSparkline(sparkEl, cpuHistory);
+
+  /* Network bars */
+  var netData = [
+    [12,4],[14,5],[18,6],[22,7],[19,8],[16,6],[20,7],[28,9],[35,10],[40,12],
+    [38,11],[32,9],[30,8],[34,10],[42,13],[48,15],[52,16],[45,14],[38,12],
+    [35,11],[40,13],[44,14],[48,15],[52,16]
+  ];
+  var barsEl = document.getElementById('net-bars');
+  if (barsEl) SynteqUI.renderBars(barsEl, netData);
+
+  /* Live counter */
+  var ts = document.getElementById('refresh-ts');
+  if (ts) {
+    var secs = 5;
+    setInterval(function () {
+      secs += 5;
+      ts.textContent = secs < 60 ? 'Live · ' + secs + 's ago' : 'Live · ' + Math.floor(secs/60) + 'm ago';
+    }, 5000);
+  }
+
+  /* Show CPU gauge animation after 2s */
+  setTimeout(function () {
+    var fill = document.querySelector('[data-sq-gauge="34"] .sq-gauge__fill');
+    if (fill) SynteqUI.renderGauge(fill, 47);
+  }, 2000);
+})();
+</script>
+</body>
+</html>

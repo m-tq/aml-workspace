@@ -1,10 +1,11 @@
-// Submit the AML source for on-chain verification via contract_verify
-// against the network selected by .env / AML_NETWORK.
+// Submit the AppliedML source for on-chain verification via
+// octra_programVerify against the network selected by .env / AML_NETWORK.
 
-const fs = require('node:fs')
+const fs   = require('node:fs')
+const path = require('node:path')
 
 const { rpc, setRpcUrl, getRpcUrl } = require('./lib/rpc')
-const { buildConfig, readDeployment } = require('./lib/env')
+const { buildConfig, buildDir, readDeployment } = require('./lib/env')
 
 function log(label, value) {
   console.log(`${label.padEnd(18)} ${value}`)
@@ -25,26 +26,43 @@ function log(label, value) {
 
   const source = fs.readFileSync(config.contractPath, 'utf8')
 
-  console.log('─── verify ──────────────────────────────────────')
+  console.log('─── verify ───────────────────────────────────────')
   log('network',  config.network)
   log('rpc',      getRpcUrl())
   log('contract', config.contractName)
   log('address',  deployment.address)
-  log('src_len',  String(source.length))
+  log('src_len',  `${Buffer.byteLength(source, 'utf8')} bytes`)
 
-  const result = await rpc('contract_verify', [deployment.address, source])
+  const result = await rpc('octra_programVerify', [deployment.address, source])
   log('result', typeof result === 'string' ? result : JSON.stringify(result).slice(0, 300))
+  if (result?.verification) {
+    const v = result.verification
+    const safety = v.safety ?? (v.errors > 0 ? 'error' : 'safe')
+    log('formal', `${safety} (errors ${v.errors ?? 0}, warnings ${v.warnings ?? 0})`)
+  }
 
   try {
-    const fetched = await rpc('contract_source', [deployment.address])
+    const fetched = await rpc('octra_programSource', [deployment.address])
     const got = typeof fetched === 'string' ? fetched : (fetched?.source ?? '')
     log('source_stored', got.length ? `${got.length} chars` : 'none')
   } catch (err) {
     log('source_stored', `read failed: ${err.message}`)
   }
 
-  console.log('─── done ────────────────────────────────────────')
+  const outPath = path.join(buildDir(config.contractName), `verification.${config.network}.json`)
+  fs.mkdirSync(path.dirname(outPath), { recursive: true })
+  fs.writeFileSync(outPath, JSON.stringify({
+    contract:   config.contractName,
+    address:    deployment.address,
+    network:    config.network,
+    verifiedAt: new Date().toISOString(),
+    result,
+  }, null, 2))
+  log('saved', path.relative(process.cwd(), outPath))
+
+  console.log('─── done ─────────────────────────────────────────')
 })().catch((err) => {
   console.error('verify error:', err.message)
+  if (err.stack && process.env.AML_DEBUG === '1') console.error(err.stack)
   process.exit(1)
 })

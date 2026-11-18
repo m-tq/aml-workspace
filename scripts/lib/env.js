@@ -80,11 +80,13 @@ function loadEnv() {
 }
 
 const DEFAULT_RPC = {
-  devnet:  'http://165.227.225.79:8080',
-  mainnet: 'http://46.101.86.250:8080',
+  local:   'http://127.0.0.1:18080',
+  devnet:  'https://devnet.octrascan.io',
+  mainnet: 'https://octrascan.io',
 }
 
 const DEFAULT_EXPLORER = {
+  local:   'http://127.0.0.1:18080',
   devnet:  'https://devnet.octrascan.io',
   mainnet: 'https://octrascan.io',
 }
@@ -152,7 +154,10 @@ function resolveContractName(env, contractPath) {
 
 function buildConfig() {
   const env = loadEnv()
-  const network = env.AML_NETWORK === 'mainnet' ? 'mainnet' : 'devnet'
+  const requestedNetwork = String(env.AML_NETWORK || 'devnet').toLowerCase()
+  const network = ['local', 'devnet', 'mainnet'].includes(requestedNetwork)
+    ? requestedNetwork
+    : 'devnet'
 
   const { contractPath, exists } = resolveContractPath(env)
   const contractName = resolveContractName(env, contractPath)

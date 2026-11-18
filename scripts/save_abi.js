@@ -1,4 +1,4 @@
-// Publish the compiled ABI to the node via contract_saveAbi for the
+// Publish the compiled ABI to the node via octra_programSaveAbi for the
 // network selected by .env / AML_NETWORK.
 
 const fs   = require('node:fs')
@@ -35,7 +35,7 @@ function log(label, value) {
 
   const fnCount = Array.isArray(abi) ? abi.length : (abi?.functions?.length ?? 0)
 
-  console.log('─── save abi ────────────────────────────────────')
+  console.log('─── save abi ─────────────────────────────────────')
   log('network',  config.network)
   log('rpc',      getRpcUrl())
   log('contract', config.contractName)
@@ -43,10 +43,10 @@ function log(label, value) {
   log('methods',  String(fnCount))
 
   const abiString = typeof abi === 'string' ? abi : JSON.stringify(abi)
-  const result = await rpc('contract_saveAbi', [deployment.address, abiString])
+  const result = await rpc('octra_programSaveAbi', [deployment.address, abiString])
   log('result', typeof result === 'string' ? result : JSON.stringify(result).slice(0, 200))
 
-  const stored = await rpc('octra_contractAbi', [deployment.address])
+  const stored = await rpc('octra_programAbi', [deployment.address])
   let storedCount = 0
   const inner = stored?.abi ?? stored
   if (Array.isArray(inner)) storedCount = inner.length
@@ -59,8 +59,9 @@ function log(label, value) {
   }
   log('stored_methods', String(storedCount))
 
-  console.log('─── done ────────────────────────────────────────')
+  console.log('─── done ─────────────────────────────────────────')
 })().catch((err) => {
   console.error('save_abi error:', err.message)
+  if (err.stack && process.env.AML_DEBUG === '1') console.error(err.stack)
   process.exit(1)
 })

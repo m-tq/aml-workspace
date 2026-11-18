@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" class="theme-dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Synteq UI — Component Explorer</title>
+  <link rel="stylesheet" href="../css/synteq-ui.css" />
+  <style>
+    /* ── Explorer-specific chrome ─────────────────────────────────── */
+
+    /* User pill (reused from dashboard) */
+    .sq-user { display:flex; align-items:center; gap:var(--sq-space-2); min-width:0; text-decoration:none; }
+    .sq-user__info { display:flex; flex-direction:column; min-width:0; }
+    .sq-user__name  { font-size:var(--sq-text-sm); color:var(--sq-text-strong); font-weight:var(--sq-fw-medium); line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .sq-user__email { font-size:var(--sq-text-xs); color:var(--sq-text-subtle); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* Component preview block */
+    .cx-block {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sq-space-3);
+      min-width: 0;
+      width: 100%;
+    }
+
+    /* Live preview area.
+       The stage must NOT use --sq-inset: buttons, inputs and segmented bars are
+       inset-coloured, so on an inset stage every control lost its edge and the
+       preview looked empty. Canvas + hairline keeps the components readable and
+       matches the surface they actually sit on in an app. */
+    .cx-preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: var(--sq-space-3);
+      padding: var(--sq-space-5);
+      background: var(--sq-canvas);
+      border: var(--sq-line-h) solid var(--sq-line);
+      border-radius: var(--sq-radius-control);
+      min-width: 0;
+    }
+    .cx-preview > * { min-width: 0; max-width: 100%; }
+    .cx-preview--col { flex-direction: column; align-items: stretch; justify-content: flex-start; }
+
+    /* Code snippet */
+    .cx-code {
+      position: relative;
+      background: var(--sq-sidebar);
+      border-radius: var(--sq-radius-control);
+      overflow: hidden;
+      min-width: 0;
+    }
+    .cx-code pre {
+      margin: 0;
+      /* right padding reserves room for the copy button — they used to overlap */
+      padding: var(--sq-space-4) calc(var(--sq-space-5) + 48px) var(--sq-space-4) var(--sq-space-5);
+      overflow-x: auto;
+      font-family: var(--sq-font-mono);
+      font-size: var(--sq-text-xs);
+      line-height: 1.65;
+      color: var(--sq-text);
+      tab-size: 2;
+      scrollbar-width: thin;
+      scrollbar-color: var(--sq-line-strong) transparent;
+    }
+    .cx-code pre::-webkit-scrollbar { height: 4px; }
+    .cx-code pre::-webkit-scrollbar-thumb { background: var(--sq-line-strong); border-radius: 2px; }
+    .cx-copy-btn {
+      position: absolute;
+      top: var(--sq-space-2);
+      right: var(--sq-space-2);
+      z-index: 2;
+      font-size: var(--sq-text-xs);
+      color: var(--sq-text-subtle);
+      padding: 2px var(--sq-space-2);
+      border-radius: var(--sq-radius-micro);
+      background: var(--sq-hover);
+      transition: color var(--sq-dur-instant) var(--sq-ease), background var(--sq-dur-instant) var(--sq-ease);
+    }
+    .cx-copy-btn:hover { color: var(--sq-text-strong); background: var(--sq-line-strong); }
+    .cx-copy-btn.copied { color: var(--sq-status-running); }
+
+    /* Token chip */
+    .cx-token { font-family:var(--sq-font-mono); font-size:var(--sq-text-xs); color:var(--sq-brand); background:color-mix(in srgb, var(--sq-brand) 10%, transparent); padding:1px 5px; border-radius:var(--sq-radius-micro); }
+
+    /* Color swatch — auto-fill grid keeps every swatch on a real column */
+    .cx-swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+      gap: var(--sq-space-3) var(--sq-space-2);
+      min-width: 0;
+    }
+    .cx-swatch {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sq-space-1);
+      min-width: 0;
+    }
+    .cx-swatch__dot {
+      width: 32px; height: 32px;
+      border-radius: var(--sq-radius-control);
+      border: 1px solid var(--sq-line);
+    }
+    .cx-swatch__name { font-size:var(--sq-text-xs); color:var(--sq-text-subtle); overflow:hidden; text-overflow:ellipsis; }
+
+    /* Type specimen.
+       The value column is `minmax(0, max-content)` so spec strings such as
+       "clamp(26,3.2vw,34)" get the width they need instead of bleeding into the
+       specimen column (they used to overlap the sample text). */
+    .cx-type-row {
+      display: grid;
+      grid-template-columns: 88px minmax(0, max-content) minmax(0, 1fr);
+      align-items: baseline;
+      gap: var(--sq-space-4);
+      padding: var(--sq-space-2) 0;
+      border-top: 1px solid var(--sq-line);
+      min-width: 0;
+    }
+    .cx-type-row:first-child { border-top:none; }
+    .cx-type-label { min-width: 0; font-size:var(--sq-text-xs); color:var(--sq-text-subtle); font-family:var(--sq-font-mono); }
+    .cx-type-val { min-width: 0; font-size:var(--sq-text-xs); color:var(--sq-text-subtle); font-family:var(--sq-font-mono); overflow-wrap: anywhere; }
+    .cx-type-row > :last-child { min-width: 0; overflow-wrap: anywhere; }
+
+    /* Reduced width container for narrow previews — centred like the rest */
+    .cx-narrow { width: 100%; max-width: 360px; margin-inline: auto; }
+
+    /* ── Explorer breakpoints ─────────────────────────────────────── */
+    @media (max-width: 720px) {
+      .cx-preview { padding: var(--sq-space-4); justify-content: flex-start; }
+      .cx-type-row { grid-template-columns: 76px minmax(0, 1fr); gap: var(--sq-space-1) var(--sq-space-3); }
+      .cx-type-row > :last-child { grid-column: 1 / -1; }
+      .cx-type-val { text-align: right; }
+    }
+    @media (max-width: 420px) {
+      .cx-preview { padding: var(--sq-space-3); }
+      .cx-swatch-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="sq-app" id="app">
+
+  <!-- ── SIDEBAR ─────────────────────────────────────────────────── -->
+  <aside class="sq-aside" aria-label="Component categories" id="sidebar">
+    <a href="#" class="sq-aside__brand" aria-label="Component Explorer home">
+      <span class="sq-aside__brand-mark" aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M9 3.5C9 2.12 7.66 1 6 1 4.34 1 3 2.12 3 3.5c0 1.18.9 2.17 2.14 2.41L7.5 6.3C8.43 6.57 9 7.3 9 8.2 9 9.32 7.87 10.2 6.5 10.2S4 9.32 4 8.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      Components
+    </a>
+
+    <nav class="sq-nav" aria-label="Component categories">
+      <a href="#tokens" class="sq-nav__item sq-nav__item--active" aria-current="page">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+        Tokens
+      </a>
+      <a href="#typography" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        Typography
+      </a>
+      <a href="#icons" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Icons
+      </a>
+
+      <a href="#shell" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="9" y2="9"/></svg>
+        Shell
+      </a>
+      <a href="#sections" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        Sections
+      </a>
+
+      <a href="#stats" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Stats & KV
+      </a>
+      <a href="#gauges" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.364 5.636a9 9 0 1 1-12.728 0M12 12V3"/></svg>
+        Gauges
+      </a>
+      <a href="#charts" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Charts
+      </a>
+
+      <a href="#buttons" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="7" cy="12" r="3"/></svg>
+        Buttons
+      </a>
+      <a href="#badges" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+        Badges
+      </a>
+      <a href="#inputs" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M8 12h.01M12 12h.01M16 12h.01"/></svg>
+        Inputs
+      </a>
+      <a href="#forms" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Forms
+      </a>
+      <a href="#overlays" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+        Overlays
+      </a>
+      <a href="#table" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+        Table
+      </a>
+      <a href="#tree" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h6v6H3zM15 15h6v6h-6zM15 3h6v6h-6zM6 9v6a3 3 0 0 0 3 3h6"/></svg>
+        Tree
+      </a>
+      <a href="#stepper" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="4" x2="6" y2="20"/><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><line x1="11" y1="6" x2="20" y2="6"/><line x1="11" y1="18" x2="20" y2="18"/></svg>
+        Stepper
+      </a>
+      <a href="#code" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Code
+      </a>
+
+      <a href="#feedback" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Feedback
+      </a>
+      <a href="#motion" class="sq-nav__item">
+        <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 9-14 9V3z"/></svg>
+        Animated UI
+      </a>
+    </nav>
+
+    <div class="sq-aside__footer">
+      <span class="sq-dot" aria-label="Online"></span>
+      <a href="dashboard.html" class="sq-user" aria-label="Back to dashboard demo">
+        <span class="sq-avatar" aria-hidden="true">→</span>
+        <span class="sq-user__info">
+          <span class="sq-user__name">Dashboard Demo</span>
+          <span class="sq-user__email">examples/dashboard.html</span>
+        </span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ── TOPBAR ──────────────────────────────────────────────────── -->
+  <header class="sq-topbar" role="banner">
+    <button class="sq-sidebar-toggle" data-sq-sidebar-toggle
+            aria-label="Toggle navigation" aria-expanded="true" aria-controls="sidebar">
+      <svg class="sq-icon sq-icon--18 icon-menu" viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      <svg class="sq-icon sq-icon--18 icon-close" viewBox="0 0 24 24" aria-hidden="true" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <div class="sq-topbar__left">
+      <span class="sq-topbar__title">Component Explorer</span>
+      <span class="sq-badge sq-badge--brand">2.2.0</span>
+    </div>
+
+    <div class="sq-topbar__right">
+      <button class="sq-search" data-sq-search-trigger aria-label="Search components"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="sq-search__text">Search...</span><kbd class="sq-kbd">⌘K</kbd></button>
+      <button class="sq-iconbtn sq-theme-toggle" data-sq-toggle-theme aria-label="Toggle theme">
+        <svg class="sq-icon sq-icon--16 sq-icon--moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="sq-icon sq-icon--16 sq-icon--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── MAIN ───────────────────────────────────────────────────── -->
+  <main class="sq-main" aria-label="Component explorer content">
+    <div class="sq-content sq-scroll" id="main-content">
+
+      <!-- ══ TOKENS ══════════════════════════════════════════════ -->
+      <div class="sq-section" id="tokens">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+            Design Tokens
+          </span>
+        </div>
+
+        <!-- Colors -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute" style="text-transform:uppercase;letter-spacing:.06em;">Surface & Text</span>
+          <div class="cx-swatch-grid">
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-canvas)"></div><span class="cx-swatch__name">canvas</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-sidebar)"></div><span class="cx-swatch__name">sidebar</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-hover)"></div><span class="cx-swatch__name">hover</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-inset)"></div><span class="cx-swatch__name">inset</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-text)"></div><span class="cx-swatch__name">text</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-text-strong)"></div><span class="cx-swatch__name">text-strong</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-text-subtle)"></div><span class="cx-swatch__name">text-subtle</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-brand)"></div><span class="cx-swatch__name">brand</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-status-running)"></div><span class="cx-swatch__name">running</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-status-warning)"></div><span class="cx-swatch__name">warning</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-status-error)"></div><span class="cx-swatch__name">error</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-tel-in)"></div><span class="cx-swatch__name">tel-in</span></div>
+            <div class="cx-swatch"><div class="cx-swatch__dot" style="background:var(--sq-tel-out)"></div><span class="cx-swatch__name">tel-out</span></div>
+          </div>
+        </div>
+
+        <!-- Separators -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute" style="text-transform:uppercase;letter-spacing:.06em;">Line Separators</span>
+          <div style="display:flex;flex-direction:column;gap:var(--sq-space-3);">
+            <div style="display:flex;align-items:center;gap:var(--sq-space-3);"><span class="cx-token">--sq-line</span><div style="flex:1;height:1px;background:var(--sq-line)"></div></div>
+            <div style="display:flex;align-items:center;gap:var(--sq-space-3);"><span class="cx-token">--sq-line-strong</span><div style="flex:1;height:1px;background:var(--sq-line-strong)"></div></div>
+            <div style="display:flex;align-items:center;gap:var(--sq-space-3);"><span class="cx-token">--sq-line-accent</span><div style="flex:1;height:1px;background:var(--sq-line-accent)"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ TYPOGRAPHY ════════════════════════════════════════════ -->
+      <div class="sq-section" id="typography">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            Typography
+          </span>
+          <span class="sq-section__meta">Google Sans Code · self-hosted</span>
+        </div>
+        <div>
+          <div class="cx-type-row"><span class="cx-type-label">text-3xl</span><span class="cx-type-val">clamp(26,3.2vw,34)</span><span style="font-size:var(--sq-text-3xl);font-weight:var(--sq-fw-semibold);color:var(--sq-text-strong);line-height:1.2;">Dashboard</span></div>
+          <div class="cx-type-row"><span class="cx-type-label">text-2xl</span><span class="cx-type-val">clamp(22,2.4vw,28)</span><span style="font-size:var(--sq-text-2xl);font-weight:var(--sq-fw-medium);color:var(--sq-text-strong);line-height:1.2;">99.97%</span></div>
+          <div class="cx-type-row"><span class="cx-type-label">text-xl</span><span class="cx-type-val">18px</span><span style="font-size:var(--sq-text-xl);color:var(--sq-text-strong);">Section value</span></div>
+          <div class="cx-type-row"><span class="cx-type-label">text-lg</span><span class="cx-type-val">15px</span><span style="font-size:var(--sq-text-lg);color:var(--sq-text-strong);">Sidebar brand name</span></div>
+          <div class="cx-type-row"><span class="cx-type-label">text-md</span><span class="cx-type-val">13px</span><span style="font-size:var(--sq-text-md);color:var(--sq-text);">Body · nav · KV rows</span></div>
+          <div class="cx-type-row"><span class="cx-type-label">text-sm</span><span class="cx-type-val">12px</span><span style="font-size:var(--sq-text-sm);color:var(--sq-text-subtle);">Button labels · breadcrumb</span></div>
+          <div class="cx-type-row"><span class="cx-type-label">text-xs</span><span class="cx-type-val">11px</span><span style="font-size:var(--sq-text-xs);color:var(--sq-text-subtle);text-transform:uppercase;letter-spacing:.06em;">SECTION TITLE · BADGE</span></div>
+        </div>
+      </div>
+
+      <!-- ══ ICONS ═══════════════════════════════════════════════ -->
+      <div class="sq-section" id="icons">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Icons
+          </span>
+          <span class="sq-section__meta">inline SVG · Lucide-compatible</span>
+        </div>
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Sizes</span>
+          <div class="cx-preview">
+            <span class="sq-ico-label sq-mute"><svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> 14px</span>
+            <span class="sq-ico-label sq-mute"><svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> 16px</span>
+            <span class="sq-ico-label sq-mute"><svg class="sq-icon sq-icon--18" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> 18px</span>
+            <span class="sq-ico-label sq-mute"><svg class="sq-icon sq-icon--20" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> 20px</span>
+          </div>
+          <span class="sq-t-xs sq-mute">Tints</span>
+          <div class="cx-preview">
+            <svg class="sq-icon sq-icon--18 sq-icon--mute" viewBox="0 0 24 24" title="mute" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <svg class="sq-icon sq-icon--18 sq-icon--brand" viewBox="0 0 24 24" title="brand" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <svg class="sq-icon sq-icon--18 sq-icon--ok" viewBox="0 0 24 24" title="ok" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg class="sq-icon sq-icon--18 sq-icon--warn" viewBox="0 0 24 24" title="warn" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <svg class="sq-icon sq-icon--18 sq-icon--err" viewBox="0 0 24 24" title="err" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SHELL ════════════════════════════════════════════════ -->
+      <div class="sq-section" id="shell">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="9" y2="9"/></svg>
+            App Shell
+          </span>
+          <span class="sq-section__meta">viewport-locked · no body scroll</span>
+        </div>
+        <div class="cx-block">
+          <p class="sq-t-sm sq-mute">The shell is a CSS Grid locked to <span class="cx-token">100dvh</span>. Only <span class="cx-token">.sq-content.sq-scroll</span> produces a scrollbar. A single topbar control hides and shows the sticky bottom dock.</p>
+          <div class="cx-code">
+            <button class="cx-copy-btn" aria-label="Copy shell HTML">copy</button>
+            <pre>&lt;div class="sq-app" id="app"&gt;
+  &lt;aside class="sq-aside" id="sidebar"&gt;...&lt;/aside&gt;
+
+  &lt;header class="sq-topbar"&gt;
+    &lt;button class="sq-sidebar-toggle"
+            data-sq-sidebar-toggle
+            aria-label="Toggle navigation"&gt;
+      &lt;svg class="sq-icon sq-icon--18 icon-menu"&gt;...&lt;/svg&gt;
+    &lt;/button&gt;
+    ...
+  &lt;/header&gt;
+
+  &lt;main class="sq-main"&gt;
+    &lt;div class="sq-content sq-scroll"&gt;
+      &lt;!-- sections here --&gt;
+    &lt;/div&gt;
+  &lt;/main&gt;
+&lt;/div&gt;</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SECTIONS ═════════════════════════════════════════════ -->
+      <div class="sq-section" id="sections">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            Sections & Separators
+          </span>
+        </div>
+        <div class="cx-block">
+          <p class="sq-t-sm sq-mute">One <span class="cx-token">border-top</span> hairline separates each section. First section has no separator. Section heads have <strong>no</strong> <span class="cx-token">border-bottom</span>.</p>
+          <div class="cx-preview cx-preview--col cx-narrow">
+            <div class="sq-section" style="border-top:none;padding-top:0;">
+              <div class="sq-section__head"><span class="sq-section__title">First Section</span><span class="sq-section__meta">no top border</span></div>
+              <p class="sq-t-sm sq-mute">Content here.</p>
+            </div>
+            <div class="sq-section">
+              <div class="sq-section__head"><span class="sq-section__title">Second Section</span></div>
+              <p class="sq-t-sm sq-mute">Separated by one hairline above.</p>
+            </div>
+            <div class="sq-section">
+              <div class="sq-section__head"><span class="sq-section__title">Third Section</span></div>
+              <p class="sq-t-sm sq-mute">Only ever one rule between blocks.</p>
+            </div>
+          </div>
+          <div class="cx-code">
+            <button class="cx-copy-btn" aria-label="Copy section HTML">copy</button>
+            <pre>&lt;div class="sq-section"&gt;
+  &lt;div class="sq-section__head"&gt;
+    &lt;span class="sq-section__title"&gt;
+      &lt;svg class="sq-icon sq-icon--14" ...&gt;...&lt;/svg&gt;
+      Section Title
+    &lt;/span&gt;
+    &lt;span class="sq-section__meta"&gt;updated 5s ago&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;!-- content --&gt;
+&lt;/div&gt;</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ STATS & KV ════════════════════════════════════════════ -->
+      <div class="sq-section" id="stats">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Stats & Key-Value
+          </span>
+        </div>
+
+        <!-- Stat strip -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Stat strip — gap only, no dividers</span>
+          <div class="cx-preview">
+            <div class="sq-stat-strip">
+              <div class="sq-stat">
+                <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="14" x2="4" y2="14"/></svg> vCPU</span>
+                <div class="sq-stat__value">4 <span class="sq-unit">cores</span></div>
+              </div>
+              <div class="sq-stat">
+                <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v4c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 9v4c0 1.66 4.03 3 9 3s9-1.34 9-3V9"/></svg> Disk</span>
+                <div class="sq-stat__value">160 <span class="sq-unit">GB</span></div>
+              </div>
+              <div class="sq-stat">
+                <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--ok" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> Inbound</span>
+                <div class="sq-stat__value">2.4 <span class="sq-unit">MB/s</span></div>
+                <span class="sq-stat__delta sq-stat__delta--up">↑ 18% vs avg</span>
+              </div>
+              <div class="sq-stat">
+                <span class="sq-stat__label"><svg class="sq-icon sq-icon--14 sq-icon--err" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> Outbound</span>
+                <div class="sq-stat__value">0.8 <span class="sq-unit">MB/s</span></div>
+                <span class="sq-stat__delta sq-stat__delta--down">↓ 4% vs avg</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KV list -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Key-Value rows — border-top between rows only</span>
+          <div class="cx-preview cx-preview--col cx-narrow">
+            <div class="sq-kv">
+              <div class="sq-kv__row"><span class="sq-kv__label">Hostname</span><span class="sq-kv__value sq-mono">octra</span></div>
+              <div class="sq-kv__row"><span class="sq-kv__label">OS</span><span class="sq-kv__value">Ubuntu 24.04 LTS</span></div>
+              <div class="sq-kv__row"><span class="sq-kv__label">Region</span><span class="sq-kv__value">AMS1 — Amsterdam</span></div>
+              <div class="sq-kv__row"><span class="sq-kv__label">Status</span><span class="sq-kv__value"><span class="sq-badge sq-badge--ok">Running</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ GAUGES ════════════════════════════════════════════════ -->
+      <div class="sq-section" id="gauges">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.364 5.636a9 9 0 1 1-12.728 0M12 12V3"/></svg>
+            Gauges
+          </span>
+          <span class="sq-section__meta">auto-colored by JS · reduced-motion safe</span>
+        </div>
+        <div class="cx-block">
+          <div class="cx-preview cx-preview--col cx-narrow" style="gap:var(--sq-space-4);">
+            <div class="sq-gauge" data-sq-gauge="34" role="progressbar" aria-label="CPU" aria-valuenow="34" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-gauge__head"><span class="sq-gauge__label">CPU — 34% (green &lt;75)</span><span class="sq-gauge__value">34<span class="sq-gauge__max"> / 100%</span></span></div>
+              <div class="sq-gauge__track"><div class="sq-gauge__fill"></div></div>
+            </div>
+            <div class="sq-gauge" data-sq-gauge="78" role="progressbar" aria-label="Memory" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-gauge__head"><span class="sq-gauge__label">Memory — 78% (amber 75-89)</span><span class="sq-gauge__value">78<span class="sq-gauge__max"> / 100%</span></span></div>
+              <div class="sq-gauge__track"><div class="sq-gauge__fill"></div></div>
+            </div>
+            <div class="sq-gauge" data-sq-gauge="93" role="progressbar" aria-label="Disk" aria-valuenow="93" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-gauge__head"><span class="sq-gauge__label">Disk — 93% (red ≥90)</span><span class="sq-gauge__value">93<span class="sq-gauge__max"> / 100%</span></span></div>
+              <div class="sq-gauge__track"><div class="sq-gauge__fill"></div></div>
+            </div>
+            <div class="sq-gauge" data-sq-gauge="22" role="progressbar" aria-label="Bandwidth" aria-valuenow="22" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-gauge__head"><span class="sq-gauge__label">Bandwidth — brand override</span><span class="sq-gauge__value">22<span class="sq-gauge__max"> / 4 TB</span></span></div>
+              <div class="sq-gauge__track"><div class="sq-gauge__fill sq-gauge__fill--brand"></div></div>
+            </div>
+          </div>
+          <div class="cx-code">
+            <button class="cx-copy-btn" aria-label="Copy gauge HTML">copy</button>
+            <pre>&lt;div class="sq-gauge" data-sq-gauge="72"
+     role="progressbar" aria-label="CPU"
+     aria-valuenow="72" aria-valuemin="0" aria-valuemax="100"&gt;
+  &lt;div class="sq-gauge__head"&gt;
+    &lt;span class="sq-gauge__label"&gt;CPU&lt;/span&gt;
+    &lt;span class="sq-gauge__value"&gt;72
+      &lt;span class="sq-gauge__max"&gt; / 100%&lt;/span&gt;
+    &lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div class="sq-gauge__track"&gt;
+    &lt;div class="sq-gauge__fill"&gt;&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ CHARTS ════════════════════════════════════════════════ -->
+      <div class="sq-section" id="charts">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Charts
+          </span>
+          <span class="sq-section__meta">SVG sparklines · CSS bar chart</span>
+        </div>
+
+        <div class="sq-grid sq-grid--2">
+          <div class="cx-block">
+            <span class="sq-t-xs sq-mute">Sparkline — inbound (green)</span>
+            <div class="cx-preview cx-preview--col">
+              <svg class="sq-spark" id="spark-in" viewBox="0 0 200 40" preserveAspectRatio="none" role="img" aria-label="CPU trend"></svg>
+              <div class="sq-legend"><span class="sq-legend__item"><span class="sq-legend__sw sq-legend__sw--in"></span>Inbound</span></div>
+            </div>
+            <span class="sq-t-xs sq-mute">Sparkline — outbound (red)</span>
+            <div class="cx-preview cx-preview--col">
+              <svg class="sq-spark sq-spark--out" id="spark-out" viewBox="0 0 200 40" preserveAspectRatio="none" role="img" aria-label="Outbound trend"></svg>
+              <div class="sq-legend"><span class="sq-legend__item"><span class="sq-legend__sw sq-legend__sw--out"></span>Outbound</span></div>
+            </div>
+          </div>
+          <div class="cx-block">
+            <span class="sq-t-xs sq-mute">Bar chart — dual series (in/out)</span>
+            <div class="cx-preview cx-preview--col">
+              <div class="sq-bars" id="bars-demo" role="img" aria-label="Network I/O" style="--sq-bars-cols:16;"></div>
+              <div style="display:flex;justify-content:space-between;"><span class="sq-t-xs sq-mute">16 min ago</span><span class="sq-t-xs sq-mute">now</span></div>
+              <div class="sq-legend">
+                <span class="sq-legend__item"><span class="sq-legend__sw sq-legend__sw--in"></span>In</span>
+                <span class="sq-legend__item"><span class="sq-legend__sw sq-legend__sw--out"></span>Out</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cx-block" style="margin-top:var(--sq-space-4);">
+          <span class="sq-t-xs sq-mute">Line / area chart — axes, gridlines, hover tooltip</span>
+          <div class="sq-chart">
+            <div class="sq-chart__head">
+              <span class="sq-chart__title">Request rate</span>
+              <span class="sq-chart__meta">last 12 intervals</span>
+            </div>
+            <div class="sq-chart__body">
+              <svg class="sq-chart__svg" id="chart-line" viewBox="0 0 640 168" role="img"
+                   aria-label="Request rate and error rate over the last 12 intervals"></svg>
+            </div>
+            <div class="sq-chart__legend" data-sq-chart-legend></div>
+          </div>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Stacked bars — multi-series columns with hover tooltip</span>
+          <div class="sq-chart">
+            <div class="sq-chart__head">
+              <span class="sq-chart__title">Traffic by class</span>
+              <span class="sq-chart__meta">req/s</span>
+            </div>
+            <div class="sq-chart__body">
+              <div class="sq-chart__cols" id="chart-stacked" role="img"
+                   aria-label="Stacked traffic by request class"></div>
+            </div>
+            <div class="sq-chart__xlabels" data-sq-chart-labels></div>
+            <div class="sq-chart__legend" data-sq-chart-legend></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ BUTTONS ═══════════════════════════════════════════════ -->
+      <div class="sq-section" id="buttons">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="7" cy="12" r="3"/></svg>
+            Buttons
+          </span>
+        </div>
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Variants</span>
+          <div class="cx-preview">
+            <button class="sq-btn">Default</button>
+            <button class="sq-btn sq-btn--primary">Primary</button>
+            <button class="sq-btn sq-btn--brand">Brand</button>
+            <button class="sq-btn sq-btn--ghost">Ghost</button>
+            <button class="sq-btn sq-btn--info">Info</button>
+            <button class="sq-btn sq-btn--warn">Warning</button>
+            <button class="sq-btn sq-btn--danger">Danger</button>
+            <button class="sq-iconbtn" aria-label="Options"><svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+          </div>
+          <span class="sq-t-xs sq-mute">Tonal status variants — info · warning · danger</span>
+          <div class="cx-preview">
+            <button class="sq-btn sq-btn--info">
+              <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Show details
+            </button>
+            <button class="sq-btn sq-btn--warn">
+              <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Drain node
+            </button>
+            <button class="sq-btn sq-btn--danger">
+              <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              Destroy
+            </button>
+          </div>
+          <span class="sq-t-xs sq-mute">States</span>
+          <div class="cx-preview">
+            <button class="sq-btn">Idle</button>
+            <button class="sq-btn" disabled>Disabled</button>
+          </div>
+          <span class="sq-t-xs sq-mute">Segmented bar</span>
+          <div class="cx-preview">
+            <div class="sq-seg" role="group" aria-label="Instance actions">
+              <button class="sq-seg__btn sq-seg__btn--active" aria-label="Console">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                Console
+              </button>
+              <button class="sq-seg__btn" aria-label="Power">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                Power
+              </button>
+              <button class="sq-seg__btn" aria-label="Reboot">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Reboot
+              </button>
+            </div>
+          </div>
+          <span class="sq-t-xs sq-mute">Block stack</span>
+          <div class="cx-preview cx-preview--col cx-narrow">
+            <div class="sq-btn__stack">
+              <button class="sq-btn sq-btn--block">Resize VPS</button>
+              <button class="sq-btn sq-btn--block sq-btn--ghost">Switch plan</button>
+              <button class="sq-btn sq-btn--block sq-btn--danger">Destroy instance</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ BADGES ════════════════════════════════════════════════ -->
+      <div class="sq-section" id="badges">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+            Badges & Status
+          </span>
+        </div>
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Badge variants</span>
+          <div class="cx-preview">
+            <span class="sq-badge">Default</span>
+            <span class="sq-badge sq-badge--info">Info</span>
+            <span class="sq-badge sq-badge--ok">Running</span>
+            <span class="sq-badge sq-badge--warn">Degraded</span>
+            <span class="sq-badge sq-badge--err">Error</span>
+            <span class="sq-badge sq-badge--brand">New</span>
+          </div>
+          <span class="sq-t-xs sq-mute">Status dots</span>
+          <div class="cx-preview">
+            <span class="sq-status" aria-label="Running"><span class="sq-dot" aria-hidden="true"></span> Running</span>
+            <span class="sq-status" aria-label="Warning"><span class="sq-dot sq-dot--reboot" aria-hidden="true"></span> Rebooting</span>
+            <span class="sq-status" aria-label="Stopped"><span class="sq-dot sq-dot--stopped" aria-hidden="true"></span> Stopped</span>
+            <span class="sq-status" aria-label="Pending"><span class="sq-dot sq-dot--info" aria-hidden="true"></span> Pending</span>
+          </div>
+          <span class="sq-t-xs sq-mute">Kbd pill · Avatar</span>
+          <div class="cx-preview">
+            <kbd class="sq-kbd">⌘K</kbd>
+            <kbd class="sq-kbd">Esc</kbd>
+            <span class="sq-avatar" aria-hidden="true">AC</span>
+            <span class="sq-avatar" aria-hidden="true">JD</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ INPUTS ════════════════════════════════════════════════ -->
+      <div class="sq-section" id="inputs">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/></svg>
+            Inputs
+          </span>
+        </div>
+        <div class="cx-block">
+          <div class="cx-preview cx-preview--col cx-narrow">
+            <input class="sq-input" type="text" placeholder="Search resources…" aria-label="Search" />
+            <input class="sq-input" type="text" value="octra" aria-label="Hostname" />
+            <input class="sq-input" type="text" placeholder="Disabled input" aria-label="Disabled" disabled />
+          </div>
+          <span class="sq-t-xs sq-mute">Search trigger (topbar variant)</span>
+          <div class="cx-preview">
+            <button class="sq-search" data-sq-search-trigger aria-label="Search or run a command">
+              <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span class="sq-search__text">Search…</span>
+              <kbd class="sq-kbd">⌘K</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ FEEDBACK ══════════════════════════════════════════════ -->
+      <!-- ══ FORMS ═════════════════════════════════════════════════ -->
+      <div class="sq-section" id="forms">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            Forms &amp; Inputs
+          </span>
+          <span class="sq-section__meta">field, input, textarea, select, checkbox, radio, switch, input group, range</span>
+        </div>
+
+        <!-- Field wrapper + input states -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Text inputs — label, hint, error, disabled</span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-grid sq-grid--2" style="width:100%;">
+              <div class="sq-field">
+                <label for="cx-username" class="sq-field__label sq-field__label--required">Username</label>
+                <input type="text" id="cx-username" class="sq-input" placeholder="Enter username"
+                       aria-required="true" aria-describedby="cx-username-hint">
+                <span id="cx-username-hint" class="sq-field__hint">3-20 characters, alphanumeric only</span>
+              </div>
+              <div class="sq-field sq-field--invalid">
+                <label for="cx-email" class="sq-field__label">Email</label>
+                <input type="email" id="cx-email" class="sq-input" value="invalid-email"
+                       aria-invalid="true" aria-describedby="cx-email-error">
+                <span id="cx-email-error" class="sq-field__error">Please enter a valid email address</span>
+              </div>
+              <div class="sq-field">
+                <label for="cx-password" class="sq-field__label">Password</label>
+                <input type="password" id="cx-password" class="sq-input" placeholder="Password">
+              </div>
+              <div class="sq-field">
+                <label for="cx-disabled" class="sq-field__label">Disabled</label>
+                <input type="text" id="cx-disabled" class="sq-input" value="Cannot edit" disabled>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Textarea + select -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Textarea &amp; select</span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-grid sq-grid--2" style="width:100%;">
+              <div class="sq-field">
+                <label for="cx-notes" class="sq-field__label">Notes</label>
+                <textarea id="cx-notes" class="sq-textarea" rows="3" placeholder="Enter your notes here..."></textarea>
+                <span class="sq-field__hint">Supports vertical resizing</span>
+              </div>
+              <div class="sq-field">
+                <label for="cx-region" class="sq-field__label">Region</label>
+                <select id="cx-region" class="sq-select">
+                  <option value="">Select a region</option>
+                  <option value="us-east">US East</option>
+                  <option value="us-west">US West</option>
+                  <option value="eu-central">EU Central</option>
+                  <option value="ap-southeast">AP Southeast</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Checkbox + radio -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Checkbox &amp; radio</span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-grid sq-grid--2" style="width:100%;">
+              <div>
+                <label class="sq-checkbox-label"><input type="checkbox" class="sq-checkbox"> Enable notifications</label>
+                <label class="sq-checkbox-label"><input type="checkbox" class="sq-checkbox" checked> Auto-renew subscription</label>
+                <label class="sq-checkbox-label"><input type="checkbox" class="sq-checkbox" disabled> Disabled unchecked</label>
+                <label class="sq-checkbox-label"><input type="checkbox" class="sq-checkbox" checked disabled> Disabled checked</label>
+              </div>
+              <div class="sq-radio-group" role="radiogroup" aria-label="Instance size">
+                <label class="sq-radio-label"><input type="radio" name="cx-size" value="small" class="sq-radio"> Small (2 vCPU, 4 GB RAM)</label>
+                <label class="sq-radio-label"><input type="radio" name="cx-size" value="medium" class="sq-radio" checked> Medium (4 vCPU, 8 GB RAM)</label>
+                <label class="sq-radio-label"><input type="radio" name="cx-size" value="large" class="sq-radio"> Large (8 vCPU, 16 GB RAM)</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Switch + input group -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Switch &amp; input group</span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-grid sq-grid--2" style="width:100%;">
+              <div>
+                <label class="sq-switch-label"><input type="checkbox" class="sq-switch" role="switch" aria-checked="false"> Enable auto-scaling</label>
+                <label class="sq-switch-label"><input type="checkbox" class="sq-switch" role="switch" aria-checked="true" checked> Enable monitoring</label>
+                <label class="sq-switch-label"><input type="checkbox" class="sq-switch" role="switch" disabled> Disabled switch</label>
+              </div>
+              <div>
+                <div class="sq-field">
+                  <label for="cx-amount" class="sq-field__label">Amount</label>
+                  <div class="sq-input-group">
+                    <span class="sq-input-group__affix">$</span>
+                    <input type="number" id="cx-amount" class="sq-input" placeholder="0.00">
+                    <span class="sq-input-group__affix">USD</span>
+                  </div>
+                </div>
+                <div class="sq-field">
+                  <label for="cx-domain" class="sq-field__label">Domain</label>
+                  <div class="sq-input-group">
+                    <input type="text" id="cx-domain" class="sq-input" placeholder="myapp">
+                    <span class="sq-input-group__affix">.synteq.dev</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Range -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Range slider</span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-grid sq-grid--2" style="width:100%;">
+              <div class="sq-range-label">
+                <div class="sq-range-label__head">
+                  <span class="sq-range-label__name">CPU limit</span>
+                  <span class="sq-range-label__value" id="cx-cpu-value">75%</span>
+                </div>
+                <input type="range" class="sq-range" min="0" max="100" value="75"
+                       aria-label="CPU limit percentage" id="cx-cpu-range">
+              </div>
+              <div class="sq-range-label">
+                <div class="sq-range-label__head">
+                  <span class="sq-range-label__name">Memory limit</span>
+                  <span class="sq-range-label__value">50%</span>
+                </div>
+                <input type="range" class="sq-range" min="0" max="100" value="50" aria-label="Memory limit percentage">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ OVERLAYS ═══════════════════════════════════════════════ -->
+      <div class="sq-section" id="overlays">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+            Overlays &amp; Disclosure
+          </span>
+          <span class="sq-section__meta">tabs, accordion, menu, popover, dialog, toast</span>
+        </div>
+
+        <!-- Tabs -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Tabs — roving tabindex, arrow-key navigation</span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-tabs" data-sq-tabs role="tablist" aria-label="Settings tabs" style="width:100%;">
+              <div class="sq-tabs__list">
+                <button class="sq-tabs__tab" role="tab" aria-selected="true" aria-controls="cx-panel-general" id="cx-tab-general">General</button>
+                <button class="sq-tabs__tab" role="tab" aria-selected="false" aria-controls="cx-panel-security" id="cx-tab-security">Security</button>
+                <button class="sq-tabs__tab" role="tab" aria-selected="false" aria-controls="cx-panel-billing" id="cx-tab-billing">Billing</button>
+                <button class="sq-tabs__tab" role="tab" aria-selected="false" aria-controls="cx-panel-advanced" id="cx-tab-advanced">Advanced</button>
+              </div>
+              <div class="sq-tabs__panel" role="tabpanel" id="cx-panel-general" aria-labelledby="cx-tab-general" aria-hidden="false">
+                General settings panel. Configure the account name, email, and profile picture.
+              </div>
+              <div class="sq-tabs__panel" role="tabpanel" id="cx-panel-security" aria-labelledby="cx-tab-security" aria-hidden="true">
+                Security settings panel. Manage passwords, two-factor authentication, and session history.
+              </div>
+              <div class="sq-tabs__panel" role="tabpanel" id="cx-panel-billing" aria-labelledby="cx-tab-billing" aria-hidden="true">
+                Billing settings panel. View invoices, update payment methods, and manage subscriptions.
+              </div>
+              <div class="sq-tabs__panel" role="tabpanel" id="cx-panel-advanced" aria-labelledby="cx-tab-advanced" aria-hidden="true">
+                Advanced settings panel. Developer API keys, webhooks, and custom integrations.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Accordion -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Accordion — native &lt;details&gt;</span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-accordion" style="width:100%;">
+              <details class="sq-accordion__item" open>
+                <summary class="sq-accordion__trigger">What is Synteq UI?</summary>
+                <div class="sq-accordion__content">
+                  A viewport-locked, offline-first dashboard framework built on six hard rules, with a complete component library for operator dashboards and admin panels.
+                </div>
+              </details>
+              <details class="sq-accordion__item">
+                <summary class="sq-accordion__trigger">How do I get started?</summary>
+                <div class="sq-accordion__content">
+                  Link <code>synteq-ui.css</code> and <code>synteq-ui.js</code>, then start from the shell template in the documentation.
+                </div>
+              </details>
+              <details class="sq-accordion__item">
+                <summary class="sq-accordion__trigger">Can I customize the theme?</summary>
+                <div class="sq-accordion__content">
+                  Yes. Override the <code>--sq-*</code> custom properties in your own stylesheet — see the theme guide in DESIGN.md.
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <!-- Menu + popover -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Menu dropdown &amp; popover — keyboard navigable, Escape to close</span>
+          <div class="cx-preview" style="gap:var(--sq-space-4);">
+            <div style="position:relative;">
+              <button class="sq-btn" data-sq-menu-trigger="cx-menu" aria-haspopup="menu" aria-expanded="false">
+                <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>
+                </svg>
+                Actions
+              </button>
+              <div class="sq-menu sq-menu--bottom" id="cx-menu" role="menu" hidden>
+                <button class="sq-menu__item" role="menuitem">Edit</button>
+                <button class="sq-menu__item" role="menuitem">Refresh</button>
+                <hr class="sq-menu__separator" />
+                <button class="sq-menu__item" role="menuitem">Delete</button>
+              </div>
+            </div>
+
+            <div style="position:relative;">
+              <button class="sq-btn" data-sq-popover-trigger="cx-popover" aria-haspopup="dialog">
+                <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                Help
+              </button>
+              <div class="sq-popover" id="cx-popover" role="dialog" hidden>
+                Use the arrow keys to move between tabs; Escape closes every overlay.
+              </div>
+            </div>
+
+            <div style="position:relative;">
+              <button class="sq-btn" data-sq-popover-trigger="cx-popover-rich" aria-haspopup="dialog">Instance info</button>
+              <div class="sq-popover sq-popover--rich" id="cx-popover-rich" role="dialog" hidden>
+                <div class="sq-popover__title">VPS Instance</div>
+                <p>4 vCPU, 8 GB RAM, 160 GB SSD<br>Region: US East<br>Status: Running</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dialog + toast triggers -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Dialog &amp; toast — native &lt;dialog&gt; focus trap</span>
+          <div class="cx-preview" style="gap:var(--sq-space-2);">
+            <button class="sq-btn" data-sq-dialog-open="cx-dialog">Open dialog</button>
+            <button class="sq-btn sq-btn--danger" data-sq-dialog-open="cx-confirm-dialog">Confirm action</button>
+            <button class="sq-btn" data-sq-toast="Default notification">Default toast</button>
+            <button class="sq-btn sq-btn--info" data-sq-toast="Sync scheduled for 02:00 UTC" data-sq-toast-kind="info">Info toast</button>
+            <button class="sq-btn sq-btn--warn" data-sq-toast="Memory usage above 85%" data-sq-toast-kind="warn">Warning toast</button>
+            <button class="sq-btn sq-btn--primary" data-sq-toast="Deployment completed" data-sq-toast-kind="ok">Success toast</button>
+            <button class="sq-btn sq-btn--danger" data-sq-toast="Connection failed" data-sq-toast-kind="err">Error toast</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ADVANCED TABLE ════════════════════════════════════════ -->
+      <div class="sq-section" id="table">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+            Advanced Table
+          </span>
+          <span class="sq-section__meta">sort · select · filter · paginate · sticky head</span>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Instance inventory — click a column header to sort, shift-click to select a range</span>
+
+          <div class="sq-table-toolbar" data-sq-table-toolbar>
+            <div class="sq-table-toolbar__start">
+              <span class="sq-table-toolbar__title">
+                <svg class="sq-icon sq-icon--14 sq-icon--mute" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                Instances
+              </span>
+              <span class="sq-table-toolbar__meta" data-sq-table-count>12 rows</span>
+            </div>
+            <div class="sq-table-toolbar__end">
+              <label class="sq-table-toolbar__filter">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="search" data-sq-table-filter placeholder="Filter rows..." aria-label="Filter table rows" />
+              </label>
+              <button class="sq-btn sq-btn--ghost" data-sq-toast="Inventory refreshed" aria-label="Refresh inventory">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div class="sq-table-wrap" style="max-height:320px;overflow-y:auto;">
+            <table class="sq-table sq-table--sticky sq-table--compact" data-sq-table data-sq-page-size="6">
+              <thead>
+                <tr>
+                  <th class="sq-table__check" scope="col">
+                    <input type="checkbox" class="sq-checkbox" data-sq-select-all aria-label="Select all rows" />
+                  </th>
+                  <th scope="col">
+                    <button class="sq-table__sort" data-sq-sort="text">
+                      Instance
+                      <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                    </button>
+                  </th>
+                  <th scope="col">
+                    <button class="sq-table__sort" data-sq-sort="text">
+                      Region
+                      <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                    </button>
+                  </th>
+                  <th scope="col">Status</th>
+                  <th class="sq-table__num" scope="col">
+                    <button class="sq-table__sort" data-sq-sort="number">
+                      CPU %
+                      <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                    </button>
+                  </th>
+                  <th class="sq-table__num" scope="col">
+                    <button class="sq-table__sort" data-sq-sort="number">
+                      Memory %
+                      <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                    </button>
+                  </th>
+                  <th class="sq-table__num" scope="col">
+                    <button class="sq-table__sort" data-sq-sort="number">
+                      Uptime
+                      <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+          </div>
+
+          <nav class="sq-pagination" data-sq-table-pagination aria-label="Instance table pagination"></nav>
+        </div>
+      </div>
+
+      <!-- ══ TREE ═══════════════════════════════════════════════════ -->
+      <div class="sq-section" id="tree">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h6v6H3zM15 15h6v6h-6zM15 3h6v6h-6zM6 9v6a3 3 0 0 0 3 3h6"/></svg>
+            Tree
+          </span>
+          <span class="sq-section__meta">expand / collapse · max 3 levels · arrow-key navigable</span>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Resource hierarchy — ArrowRight expands, ArrowLeft collapses, ArrowUp/Down move</span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-tree" data-sq-tree style="width:100%;">
+
+              <div class="sq-tree__item">
+                <div class="sq-tree__row">
+                  <button class="sq-tree__toggle" aria-expanded="true" aria-label="Collapse us-east-1">
+                    <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                  <span class="sq-tree__label">
+                    <svg class="sq-icon sq-icon--14 sq-icon--brand" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+                    us-east-1
+                  </span>
+                  <span class="sq-tree__meta">3 nodes</span>
+                </div>
+
+                <div class="sq-tree__group">
+                  <div class="sq-tree__item">
+                    <div class="sq-tree__row">
+                      <button class="sq-tree__toggle" aria-expanded="true" aria-label="Collapse octra-01">
+                        <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                      </button>
+                      <span class="sq-tree__label sq-tree__label--mono">octra-01</span>
+                      <span class="sq-tree__meta">running</span>
+                    </div>
+                    <div class="sq-tree__group">
+                      <div class="sq-tree__item">
+                        <div class="sq-tree__row">
+                          <span class="sq-tree__spacer" aria-hidden="true"></span>
+                          <span class="sq-tree__label sq-tree__label--mono">consensus</span>
+                          <span class="sq-tree__meta">12%</span>
+                        </div>
+                      </div>
+                      <div class="sq-tree__item">
+                        <div class="sq-tree__row">
+                          <span class="sq-tree__spacer" aria-hidden="true"></span>
+                          <span class="sq-tree__label sq-tree__label--mono">p2p</span>
+                          <span class="sq-tree__meta">31%</span>
+                        </div>
+                      </div>
+                      <div class="sq-tree__item">
+                        <div class="sq-tree__row">
+                          <span class="sq-tree__spacer" aria-hidden="true"></span>
+                          <span class="sq-tree__label sq-tree__label--mono">rpc</span>
+                          <span class="sq-tree__meta">8%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="sq-tree__item">
+                    <div class="sq-tree__row">
+                      <span class="sq-tree__spacer" aria-hidden="true"></span>
+                      <span class="sq-tree__label sq-tree__label--mono">octra-02</span>
+                      <span class="sq-tree__meta">degraded</span>
+                    </div>
+                  </div>
+
+                  <div class="sq-tree__item">
+                    <div class="sq-tree__row">
+                      <span class="sq-tree__spacer" aria-hidden="true"></span>
+                      <span class="sq-tree__label sq-tree__label--mono">octra-03</span>
+                      <span class="sq-tree__meta">stopped</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sq-tree__item">
+                <div class="sq-tree__row">
+                  <button class="sq-tree__toggle" aria-expanded="false" aria-label="Expand eu-central-1">
+                    <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                  <span class="sq-tree__label">
+                    <svg class="sq-icon sq-icon--14 sq-icon--brand" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+                    eu-central-1
+                  </span>
+                  <span class="sq-tree__meta">1 node</span>
+                </div>
+                <div class="sq-tree__group">
+                  <div class="sq-tree__item">
+                    <div class="sq-tree__row">
+                      <span class="sq-tree__spacer" aria-hidden="true"></span>
+                      <span class="sq-tree__label sq-tree__label--mono">octra-04</span>
+                      <span class="sq-tree__meta">running</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ STEPPER ════════════════════════════════════════════════ -->
+      <div class="sq-section" id="stepper">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><line x1="6" y1="4" x2="6" y2="20"/><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><line x1="11" y1="6" x2="20" y2="6"/><line x1="11" y1="18" x2="20" y2="18"/></svg>
+            Stepper / Timeline
+          </span>
+          <span class="sq-section__meta">vertical progress indicator · complete, active, pending</span>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Deployment pipeline — driven by <span class="cx-token">data-sq-step</span></span>
+          <div class="cx-preview cx-preview--col" style="align-items:flex-start;">
+            <div class="sq-stepper" id="cx-stepper" data-sq-stepper data-sq-step="2" style="width:100%;max-width:520px;">
+              <div class="sq-stepper__item">
+                <span class="sq-stepper__marker" aria-hidden="true">
+                  <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                <div class="sq-stepper__body">
+                  <div class="sq-stepper__title">Provision instance</div>
+                  <div class="sq-stepper__desc">Compute, network and volume created in us-east-1.</div>
+                  <div class="sq-stepper__meta"><span class="sq-badge sq-badge--ok">done</span><span>00:42</span></div>
+                </div>
+              </div>
+
+              <div class="sq-stepper__item">
+                <span class="sq-stepper__marker" aria-hidden="true">
+                  <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+                <div class="sq-stepper__body">
+                  <div class="sq-stepper__title">Install runtime</div>
+                  <div class="sq-stepper__desc">Container runtime and image pulled, health probe registered.</div>
+                  <div class="sq-stepper__meta"><span class="sq-badge sq-badge--ok">done</span><span>02:11</span></div>
+                </div>
+              </div>
+
+              <div class="sq-stepper__item">
+                <span class="sq-stepper__marker" aria-hidden="true">3</span>
+                <div class="sq-stepper__body">
+                  <div class="sq-stepper__title">Sync state</div>
+                  <div class="sq-stepper__desc">Replaying consensus history — this can take a few minutes.</div>
+                  <div class="sq-stepper__meta"><span class="sq-badge sq-badge--brand">in progress</span><span>1,756,258 / 1,760,000</span></div>
+                </div>
+              </div>
+
+              <div class="sq-stepper__item">
+                <span class="sq-stepper__marker" aria-hidden="true">4</span>
+                <div class="sq-stepper__body">
+                  <div class="sq-stepper__title">Go live</div>
+                  <div class="sq-stepper__desc">Register with the load balancer and open traffic.</div>
+                  <div class="sq-stepper__meta">pending</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:var(--sq-space-2);flex-wrap:wrap;">
+              <button class="sq-btn sq-btn--ghost" data-sq-step-action="-1">Previous step</button>
+              <button class="sq-btn sq-btn--primary" data-sq-step-action="1">Next step</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ CODE BLOCK ═════════════════════════════════════════════ -->
+      <div class="sq-section" id="code">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Code Block
+          </span>
+          <span class="sq-section__meta">syntax-free · line numbers · copy button</span>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Shell snippet — the gutter is generated at runtime, copy uses the clipboard API</span>
+          <div class="sq-code" data-sq-code data-sq-line-numbers>
+            <div class="sq-code__head">
+              <span class="sq-code__title">
+                <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                install.sh
+              </span>
+              <div class="sq-code__actions">
+                <button class="sq-code__copy" data-sq-code-copy="Copied" aria-label="Copy code">
+                  <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div class="sq-code__body">
+              <pre class="sq-code__pre"><code># Synteq UI — quick start
+npm install
+npx synteq build --theme dark
+
+# Serve the component explorer locally
+npx synteq serve examples/components.html --port 4173</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Without a header bar — <span class="cx-token">sq-code--plain</span></span>
+          <div class="sq-code sq-code--plain" data-sq-code data-sq-line-numbers>
+            <div class="sq-code__body">
+              <pre class="sq-code__pre"><code>const chart = document.getElementById('chart-line');
+SynteqUI.renderLineChart(chart, [
+  { name: 'Requests', values: [12, 18, 22, 28, 35, 40] },
+  { name: 'Errors',   values: [1, 2, 1, 4, 3, 2] }
+], { labels: ['09:00', '09:05', '09:10', '09:15', '09:20', '09:25'], unit: 'k' });</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sq-section" id="feedback">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Feedback &amp; Status
+          </span>
+          <span class="sq-section__meta">alerts, progress, breadcrumbs, empty states</span>
+        </div>
+
+        <!-- Alert -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Alert / Banner — 4 kinds</span>
+          <div class="cx-preview cx-preview--col" style="gap:var(--sq-space-3);">
+            <div class="sq-alert sq-alert--info" role="alert">
+              <svg class="sq-icon sq-icon--16 sq-alert__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <div class="sq-alert__content">
+                <div class="sq-alert__title">System Update Available</div>
+                <div class="sq-alert__message">Version 2.1.0 is ready to install. Update now to get the latest features.</div>
+              </div>
+              <button class="sq-alert__dismiss" aria-label="Dismiss alert">
+                <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="sq-alert sq-alert--ok" role="alert">
+              <svg class="sq-icon sq-icon--16 sq-alert__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              <div class="sq-alert__content">
+                <div class="sq-alert__title">Deployment Successful</div>
+                <div class="sq-alert__message">Your application has been deployed to production.</div>
+              </div>
+            </div>
+
+            <div class="sq-alert sq-alert--warn" role="alert">
+              <svg class="sq-icon sq-icon--16 sq-alert__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <div class="sq-alert__content">
+                <div class="sq-alert__title">High Memory Usage</div>
+                <div class="sq-alert__message">Instance is using 85% of available memory. Consider upgrading.</div>
+              </div>
+            </div>
+
+            <div class="sq-alert sq-alert--err" role="alert">
+              <svg class="sq-icon sq-icon--16 sq-alert__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+              <div class="sq-alert__content">
+                <div class="sq-alert__title">Connection Failed</div>
+                <div class="sq-alert__message">Unable to connect to database. Check your network settings and try again.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Progress Bar — determinate &amp; indeterminate</span>
+          <div class="cx-preview cx-preview--col cx-narrow" style="gap:var(--sq-space-4);">
+            <div class="sq-progress" role="progressbar" aria-valuenow="35" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-progress__head">
+                <span class="sq-progress__label">Upload progress</span>
+                <span class="sq-progress__value">35%</span>
+              </div>
+              <div class="sq-progress__track">
+                <div class="sq-progress__fill" style="width: 35%;"></div>
+              </div>
+            </div>
+
+            <div class="sq-progress" role="progressbar" aria-valuenow="78" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-progress__head">
+                <span class="sq-progress__label">Migration (warning threshold)</span>
+                <span class="sq-progress__value">78%</span>
+              </div>
+              <div class="sq-progress__track">
+                <div class="sq-progress__fill sq-progress__fill--warn" style="width: 78%;"></div>
+              </div>
+            </div>
+
+            <div class="sq-progress" role="progressbar" aria-valuenow="92" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-progress__head">
+                <span class="sq-progress__label">Disk usage (error threshold)</span>
+                <span class="sq-progress__value">92%</span>
+              </div>
+              <div class="sq-progress__track">
+                <div class="sq-progress__fill sq-progress__fill--err" style="width: 92%;"></div>
+              </div>
+            </div>
+
+            <div class="sq-progress" role="progressbar" aria-valuenow="12" aria-valuemin="0" aria-valuemax="100">
+              <div class="sq-progress__head">
+                <span class="sq-progress__label">Index rebuild (info)</span>
+                <span class="sq-progress__value">12%</span>
+              </div>
+              <div class="sq-progress__track">
+                <div class="sq-progress__fill sq-progress__fill--info" style="width: 12%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Breadcrumb -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Breadcrumb Navigation</span>
+          <div class="cx-preview">
+            <nav class="sq-breadcrumb" aria-label="Breadcrumb">
+              <a href="#" class="sq-breadcrumb__item">Home</a>
+              <span class="sq-breadcrumb__separator">/</span>
+              <a href="#" class="sq-breadcrumb__item">Instances</a>
+              <span class="sq-breadcrumb__separator">/</span>
+              <a href="#" class="sq-breadcrumb__item">us-east-1</a>
+              <span class="sq-breadcrumb__separator">/</span>
+              <span class="sq-breadcrumb__item" aria-current="page">i-0a1b2c3d</span>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Empty State</span>
+          <div class="cx-preview">
+            <div class="sq-empty">
+              <svg class="sq-empty__icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+              </svg>
+              <div class="sq-empty__title">No instances found</div>
+              <div class="sq-empty__message">
+                Get started by creating your first instance. It only takes a minute to launch a new server.
+              </div>
+              <div class="sq-empty__action">
+                <button class="sq-btn sq-btn--primary">Create Instance</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tag / Chip -->
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Tag / Chip — dismissible badges</span>
+          <div class="cx-preview" style="gap:var(--sq-space-2);flex-wrap:wrap;">
+            <span class="sq-tag">Default</span>
+            <span class="sq-tag sq-tag--brand">Featured</span>
+            <span class="sq-tag sq-tag--info">Preview</span>
+            <span class="sq-tag sq-tag--ok">
+              Active
+              <button class="sq-tag__dismiss" aria-label="Remove tag">
+                <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </span>
+            <span class="sq-tag sq-tag--warn">
+              Beta
+              <button class="sq-tag__dismiss" aria-label="Remove tag">
+                <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </span>
+            <span class="sq-tag sq-tag--err">
+              Deprecated
+              <button class="sq-tag__dismiss" aria-label="Remove tag">
+                <svg class="sq-icon sq-icon--12" viewBox="0 0 24 24" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ANIMATED UI ═══════════════════════════════════════════ -->
+      <div class="sq-section" id="motion">
+        <div class="sq-section__head">
+          <span class="sq-section__title">
+            <svg class="sq-icon sq-icon--14" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3l14 9-14 9V3z"/></svg>
+            Animated UI
+          </span>
+          <span class="sq-section__meta" id="motion-mode">click, line loading, spinners, skeletons</span>
+        </div>
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Button click — press feedback + ripple</span>
+          <div class="cx-preview" style="gap:var(--sq-space-3);flex-wrap:wrap;">
+            <button class="sq-btn sq-btn--brand">Primary action</button>
+            <button class="sq-btn">Default action</button>
+            <button class="sq-btn sq-btn--ghost">Ghost action</button>
+            <button class="sq-iconbtn" aria-label="Add item">
+              <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          <span class="sq-t-xs sq-mute">Pointer clicks ripple from the cursor; keyboard activation starts from the centre. Reduced motion falls back to the press transition only.</span>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Header loading line — <span class="cx-token">SynteqUI.setLoading(active, target?)</span></span>
+          <div class="cx-preview cx-preview--col">
+            <div class="sq-topbar is-loading" id="loader-preview" aria-busy="true" style="width:100%;min-height:var(--sq-topbar-h);padding:0 var(--sq-space-3);border:1px solid var(--sq-line);border-radius:var(--sq-radius-control);">
+              <span class="sq-topbar__title">Fetching metrics...</span>
+              <span class="sq-badge sq-badge--info" style="margin-left:auto;">line loader</span>
+              <div class="sq-topbar__loader" aria-hidden="true"></div>
+            </div>
+            <div style="display:flex;gap:var(--sq-space-2);flex-wrap:wrap;">
+              <button class="sq-btn" id="loader-demo-btn" aria-pressed="true">Stop header loading</button>
+              <button class="sq-btn sq-btn--ghost" id="loader-app-btn" aria-pressed="false">Show app header loading</button>
+            </div>
+          </div>
+          <span class="sq-t-xs sq-mute">The line is additive to the circle spinner: use it for page-level work, keep the spinner for local controls.</span>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Circle spinner — 3 sizes</span>
+          <div class="cx-preview" style="gap:var(--sq-space-4);">
+            <span class="sq-spinner sq-spinner--sm" role="status" aria-label="Loading"></span>
+            <span class="sq-spinner" role="status" aria-label="Loading"></span>
+            <span class="sq-spinner sq-spinner--lg" role="status" aria-label="Loading"></span>
+          </div>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Indeterminate progress — loading bar</span>
+          <div class="cx-preview cx-preview--col cx-narrow">
+            <div class="sq-progress" aria-busy="true">
+              <div class="sq-progress__head">
+                <span class="sq-progress__label">Syncing with the cluster...</span>
+              </div>
+              <div class="sq-progress__track">
+                <div class="sq-progress__fill sq-progress__fill--indeterminate"></div>
+              </div>
+            </div>
+          </div>
+          <span class="sq-t-xs sq-mute">Keeps moving under reduced motion at a slower rate.</span>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Skeleton shimmer</span>
+          <div class="cx-preview cx-preview--col cx-narrow" style="gap:var(--sq-space-2);">
+            <span class="sq-skeleton" style="height:14px;border-radius:var(--sq-radius-micro);">&nbsp;</span>
+            <span class="sq-skeleton" style="height:14px;width:72%;border-radius:var(--sq-radius-micro);">&nbsp;</span>
+            <span class="sq-skeleton" style="height:14px;width:54%;border-radius:var(--sq-radius-micro);">&nbsp;</span>
+          </div>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Fade-up mount — click to replay (<span class="cx-token">SynteqUI.replayAnimation</span>)</span>
+          <div class="cx-preview">
+            <button class="sq-btn" id="replay-btn">Replay animation</button>
+            <div id="anim-target" class="sq-fade-up" style="padding:var(--sq-space-3) var(--sq-space-4);background:var(--sq-inset);border-radius:var(--sq-radius-control);">
+              <span class="sq-t-sm">Faded up ↑</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Live pulse indicator</span>
+          <div class="cx-preview">
+            <span class="sq-status"><span class="sq-dot sq-live" aria-hidden="true"></span> Live data</span>
+          </div>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Stagger on scroll — add <span class="cx-token">data-sq-stagger</span> to parent</span>
+          <div class="cx-preview cx-preview--col cx-narrow" data-sq-stagger>
+            <div style="padding:var(--sq-space-2) var(--sq-space-3);background:var(--sq-inset);border-radius:var(--sq-radius-micro);" class="sq-t-sm">Child 1</div>
+            <div style="padding:var(--sq-space-2) var(--sq-space-3);background:var(--sq-inset);border-radius:var(--sq-radius-micro);" class="sq-t-sm">Child 2</div>
+            <div style="padding:var(--sq-space-2) var(--sq-space-3);background:var(--sq-inset);border-radius:var(--sq-radius-micro);" class="sq-t-sm">Child 3</div>
+          </div>
+        </div>
+
+        <div class="cx-block">
+          <span class="sq-t-xs sq-mute">Overlay entrances (menu, popover, dialog, toast) keep their interactive previews in Overlays.</span>
+          <div class="cx-preview">
+            <a class="sq-btn sq-btn--ghost" href="#overlays">Open overlay animations</a>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:var(--sq-space-7);" aria-hidden="true"></div>
+    </div>
+  </main>
+</div>
+
+  <dialog class="sq-dialog sq-dialog--sm" id="component-search" aria-labelledby="component-search-title">
+    <form method="dialog" class="sq-command">
+      <div class="sq-dialog__header">
+        <h2 class="sq-dialog__title" id="component-search-title">Find a component</h2>
+        <button class="sq-dialog__close" value="cancel" aria-label="Close search">
+          <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <input class="sq-input" data-sq-search-input placeholder="Search sections..." aria-label="Search sections" />
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#tokens">Design tokens</button>
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#buttons">Buttons and controls</button>
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#forms">Forms and inputs</button>
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#overlays">Overlays and disclosure</button>
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#table">Advanced table</button>
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#charts">Charts</button>
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#tree">Tree</button>
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#stepper">Stepper / timeline</button>
+      <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#code">Code block</button>
+          <button class="sq-btn sq-btn--ghost" type="button" data-sq-command="#motion">Animated UI</button>
+    </form>
+  </dialog>
+<dialog class="sq-dialog" id="cx-dialog" aria-labelledby="cx-dialog-title">
+  <div class="sq-dialog__header">
+    <h2 class="sq-dialog__title" id="cx-dialog-title">Dialog title</h2>
+    <button class="sq-dialog__close" data-sq-dialog-close aria-label="Close dialog">
+      <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div class="sq-dialog__body">
+    <p>Native <code>&lt;dialog&gt;</code> with the built-in focus trap. Press Escape or click the backdrop to close.</p>
+  </div>
+  <div class="sq-dialog__footer">
+    <button class="sq-btn sq-btn--ghost" data-sq-dialog-close>Cancel</button>
+    <button class="sq-btn sq-btn--primary" data-sq-dialog-close>Save changes</button>
+  </div>
+</dialog>
+
+<dialog class="sq-dialog" id="cx-confirm-dialog" role="alertdialog"
+        aria-labelledby="cx-confirm-title" aria-describedby="cx-confirm-desc">
+  <div class="sq-dialog__header">
+    <h2 class="sq-dialog__title" id="cx-confirm-title">Confirm deletion</h2>
+    <button class="sq-dialog__close" data-sq-dialog-close aria-label="Close dialog">
+      <svg class="sq-icon sq-icon--16" viewBox="0 0 24 24" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div class="sq-dialog__body" id="cx-confirm-desc">
+    <p>Delete this instance? This action cannot be undone.</p>
+  </div>
+  <div class="sq-dialog__footer">
+    <button class="sq-btn sq-btn--ghost" data-sq-dialog-close>Cancel</button>
+    <button class="sq-btn sq-btn--danger" data-sq-dialog-close id="cx-confirm-delete">Delete</button>
+  </div>
+</dialog>
+
+  <script src="../js/synteq-ui.js"></script>
+<script>
+(function () {
+  /* Sparklines */
+  var inData  = [12,18,22,28,35,40,38,34,30,36,44,50,48,42,38];
+  var outData = [4,5,7,9,12,14,11,9,8,10,13,16,14,12,10];
+  SynteqUI.renderSparkline(document.getElementById('spark-in'),  inData);
+  SynteqUI.renderSparkline(document.getElementById('spark-out'), outData);
+
+  /* Bar chart */
+  var barData = inData.map(function(v, i) { return [v, outData[i]]; });
+  SynteqUI.renderBars(document.getElementById('bars-demo'), barData);
+
+  /* Replay button for fade-up demo.
+     The class-toggle approach did nothing whenever the OS reported
+     prefers-reduced-motion (base.css shortens every CSS animation to 0.001ms),
+     so the replay is delegated to SynteqUI.replayAnimation(): it restarts the
+     animation through WAAPI and falls back to a 120ms cross-fade when motion is
+     reduced, which keeps the demo honest instead of showing "no effect". */
+  var replayBtn = document.getElementById('replay-btn');
+  var animTarget = document.getElementById('anim-target');
+  var motionMode = document.getElementById('motion-mode');
+  if (motionMode && SynteqUI.prefersReducedMotion && SynteqUI.prefersReducedMotion()) {
+    motionMode.textContent = 'click, line loading, spinners, skeletons · reduced motion: cross-fade replay';
+  }
+  if (replayBtn && animTarget) {
+    replayBtn.addEventListener('click', function () {
+      SynteqUI.replayAnimation(animTarget);
+    });
+  }
+
+  /* Header line loader demo: local preview + the real app header. */
+  var loaderPreview = document.getElementById('loader-preview');
+  var loaderDemoBtn = document.getElementById('loader-demo-btn');
+  var loaderAppBtn = document.getElementById('loader-app-btn');
+  if (loaderPreview && loaderDemoBtn) {
+    loaderDemoBtn.addEventListener('click', function () {
+      var on = !loaderPreview.classList.contains('is-loading');
+      SynteqUI.setLoading(on, loaderPreview);
+      loaderDemoBtn.textContent = on ? 'Stop header loading' : 'Start header loading';
+      loaderDemoBtn.setAttribute('aria-pressed', String(on));
+    });
+  }
+  if (loaderAppBtn) {
+    loaderAppBtn.addEventListener('click', function () {
+      var on = !loaderAppBtn.classList.contains('is-on');
+      loaderAppBtn.classList.toggle('is-on', on);
+      SynteqUI.setLoading(on);
+      loaderAppBtn.textContent = on ? 'Hide app header loading' : 'Show app header loading';
+      loaderAppBtn.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  /* Copy button wiring for code blocks */
+  document.querySelectorAll('.cx-copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pre = btn.nextElementSibling;
+      if (!pre) return;
+      navigator.clipboard && navigator.clipboard.writeText(pre.textContent.trim()).then(function () {
+        btn.textContent = 'copied!';
+        btn.classList.add('copied');
+        setTimeout(function () { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1800);
+      });
+    });
+  });
+
+  /* ---- Advanced table: build rows, then let the runtime take over ---- */
+  var instances = [
+    ['octra-01', 'us-east-1', 'Running', 'ok', 42, 61, '128d'],
+    ['octra-02', 'us-east-1', 'Running', 'ok', 78, 72, '96d'],
+    ['octra-03', 'eu-central-1', 'Degraded', 'warn', 91, 88, '41d'],
+    ['octra-04', 'us-west-2', 'Running', 'ok', 33, 47, '210d'],
+    ['octra-05', 'ap-southeast-1', 'Stopped', '', 0, 12, '5d'],
+    ['octra-06', 'eu-central-1', 'Running', 'ok', 57, 55, '63d'],
+    ['octra-07', 'us-east-1', 'Running', 'ok', 12, 30, '320d'],
+    ['octra-08', 'us-west-2', 'Error', 'err', 99, 97, '2d'],
+    ['octra-09', 'ap-southeast-1', 'Running', 'ok', 66, 58, '74d'],
+    ['octra-10', 'eu-central-1', 'Running', 'ok', 25, 41, '18d'],
+    ['octra-11', 'us-east-1', 'Running', 'ok', 48, 52, '155d'],
+    ['octra-12', 'us-west-2', 'Degraded', 'warn', 84, 79, '9d']
+  ];
+
+  var tableBody = document.querySelector('#table table tbody');
+  if (tableBody) {
+    instances.forEach(function (row) {
+      var tr = document.createElement('tr');
+      var badge = row[3] ? ' sq-badge--' + row[3] : '';
+      tr.innerHTML =
+        '<td class="sq-table__check"><input type="checkbox" class="sq-checkbox" data-sq-row-select aria-label="Select ' + row[0] + '" /></td>' +
+        '<td class="sq-table__mono">' + row[0] + '</td>' +
+        '<td class="sq-table__mute">' + row[1] + '</td>' +
+        '<td><span class="sq-badge' + badge + '">' + row[2] + '</span></td>' +
+        '<td class="sq-table__num">' + row[4] + '</td>' +
+        '<td class="sq-table__num">' + row[5] + '</td>' +
+        '<td class="sq-table__num">' + row[6] + '</td>';
+      tableBody.appendChild(tr);
+    });
+    SynteqUI.initTables();
+  }
+
+  /* ---- Line / area chart ---- */
+  var ticks = ['T-11', 'T-10', 'T-9', 'T-8', 'T-7', 'T-6', 'T-5', 'T-4', 'T-3', 'T-2', 'T-1', 'now'];
+  SynteqUI.renderLineChart(document.getElementById('chart-line'), [
+    { name: 'Requests', values: [120, 148, 132, 176, 210, 198, 242, 268, 251, 289, 312, 334] },
+    { name: 'Errors', values: [8, 12, 6, 18, 14, 22, 11, 26, 19, 15, 24, 17] }
+  ], { labels: ticks, unit: '', decimals: 0, yTicks: 4 });
+
+  /* ---- Stacked bars ---- */
+  SynteqUI.renderStackedBars(document.getElementById('chart-stacked'), [
+    { name: 'Read', values: [42, 48, 51, 44, 58, 62, 57, 66] },
+    { name: 'Write', values: [18, 22, 19, 26, 24, 31, 28, 34] },
+    { name: 'Admin', values: [6, 4, 8, 5, 7, 6, 9, 5] }
+  ], {
+    labels: ['09:00', '09:05', '09:10', '09:15', '09:20', '09:25', '09:30', '09:35'],
+    unit: ' req/s'
+  });
+
+  /* ---- Stepper ---- */
+  var stepper = document.getElementById('cx-stepper');
+  var step = 2;
+  document.querySelectorAll('[data-sq-step-action]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      step += parseInt(btn.getAttribute('data-sq-step-action'), 10);
+      SynteqUI.setStep(stepper, step);
+    });
+  });
+
+  /* ---- Range slider value ---- */
+  var cpuRange = document.getElementById('cx-cpu-range');
+  var cpuValue = document.getElementById('cx-cpu-value');
+  if (cpuRange && cpuValue) {
+    cpuRange.addEventListener('input', function () {
+      cpuValue.textContent = cpuRange.value + '%';
+    });
+  }
+
+  /* ---- Confirm dialog ---- */
+  var confirmDelete = document.getElementById('cx-confirm-delete');
+  if (confirmDelete) {
+    confirmDelete.addEventListener('click', function () {
+      SynteqUI.toast('Instance deleted', { kind: 'ok' });
+    });
+  }
+
+  /* Nav active tracking + smooth scroll are owned by the runtime
+     (SynteqUI.initNavScroll). A second scroll-spy here used to fight the
+     runtime and highlight the wrong item. */
+})();
+</script>
+</body>
+</html>
